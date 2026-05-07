@@ -1,0 +1,314 @@
+# Character alias dictionary for the Cursed Sentiment pipeline.
+#
+# Each character has:
+#   id              — canonical snake_case identifier, used everywhere downstream
+#   display_name    — what the dashboard shows
+#   role            — protagonist | antagonist | supporting | minor
+#   affiliation     — jujutsu_high | curse_user | special_grade | civilian | other
+#   status          — alive | deceased | unknown (as of canon end)
+#   aliases         — list of {string, mode, weight} entries
+#     mode          — substring | word_boundary | requires_context
+#     weight        — confidence in [0, 1] propagated to fact tables
+#   notes           — optional free-text for documentation purposes
+#
+# Match modes:
+#   substring          — match anywhere in text (use for unambiguous full names)
+#   word_boundary      — match only at word boundaries (use for short tokens)
+#   requires_context   — only resolves if another character indicator is in the same post
+
+- id: gojo_satoru
+  display_name: "Gojo Satoru"
+  role: protagonist
+  affiliation: jujutsu_high
+  status: deceased
+  aliases:
+    - {string: "Gojo Satoru", mode: substring, weight: 1.0}
+    - {string: "Satoru Gojo", mode: substring, weight: 1.0}
+    - {string: "Gojo-sensei", mode: substring, weight: 1.0}
+    - {string: "Gojo", mode: word_boundary, weight: 1.0}
+    - {string: "Satoru", mode: word_boundary, weight: 0.7}
+    - {string: "Six Eyes", mode: substring, weight: 0.85}
+    - {string: "the strongest", mode: requires_context, weight: 0.6}
+    - {string: "the honored one", mode: requires_context, weight: 0.7}
+  notes: "Ambiguity around 'Satoru' — bare token weighted 0.7 as it could refer to others."
+
+- id: ryomen_sukuna
+  display_name: "Ryomen Sukuna"
+  role: antagonist
+  affiliation: special_grade
+  status: deceased
+  aliases:
+    - {string: "Ryomen Sukuna", mode: substring, weight: 1.0}
+    - {string: "Sukuna", mode: word_boundary, weight: 1.0}
+    - {string: "King of Curses", mode: substring, weight: 0.95}
+    - {string: "Disgraced One", mode: substring, weight: 0.9}
+  notes: "'Sukunas' plural without apostrophe is missed by word_boundary — known limitation."
+
+- id: itadori_yuji
+  display_name: "Itadori Yuji"
+  role: protagonist
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Yuji Itadori", mode: substring, weight: 1.0}
+    - {string: "Itadori Yuji", mode: substring, weight: 1.0}
+    - {string: "Itadori", mode: word_boundary, weight: 1.0}
+    - {string: "Yuji", mode: word_boundary, weight: 0.85}
+
+- id: fushiguro_megumi
+  display_name: "Fushiguro Megumi"
+  role: protagonist
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Megumi Fushiguro", mode: substring, weight: 1.0}
+    - {string: "Fushiguro Megumi", mode: substring, weight: 1.0}
+    - {string: "Megumi", mode: word_boundary, weight: 0.9}
+    - {string: "Fushiguro", mode: word_boundary, weight: 0.95}
+
+- id: kugisaki_nobara
+  display_name: "Kugisaki Nobara"
+  role: protagonist
+  affiliation: jujutsu_high
+  status: unknown
+  aliases:
+    - {string: "Nobara Kugisaki", mode: substring, weight: 1.0}
+    - {string: "Kugisaki Nobara", mode: substring, weight: 1.0}
+    - {string: "Nobara", mode: word_boundary, weight: 1.0}
+    - {string: "Kugisaki", mode: word_boundary, weight: 1.0}
+
+- id: geto_suguru
+  display_name: "Geto Suguru"
+  role: antagonist
+  affiliation: curse_user
+  status: deceased
+  aliases:
+    - {string: "Suguru Geto", mode: substring, weight: 1.0}
+    - {string: "Geto Suguru", mode: substring, weight: 1.0}
+    - {string: "Geto", mode: word_boundary, weight: 0.85}
+  notes: "Post-Shibuya 'Geto' is ambiguous (Kenjaku in Geto's body) — 0.85 weight."
+
+- id: kenjaku
+  display_name: "Kenjaku"
+  role: antagonist
+  affiliation: curse_user
+  status: deceased
+  aliases:
+    - {string: "Kenjaku", mode: word_boundary, weight: 1.0}
+    - {string: "Pseudo-Geto", mode: substring, weight: 0.95}
+    - {string: "Brain Geto", mode: substring, weight: 0.9}
+
+- id: nanami_kento
+  display_name: "Nanami Kento"
+  role: supporting
+  affiliation: jujutsu_high
+  status: deceased
+  aliases:
+    - {string: "Kento Nanami", mode: substring, weight: 1.0}
+    - {string: "Nanami Kento", mode: substring, weight: 1.0}
+    - {string: "Nanami", mode: word_boundary, weight: 1.0}
+    - {string: "Nanamin", mode: word_boundary, weight: 0.95}
+
+- id: maki_zenin
+  display_name: "Maki Zenin"
+  role: supporting
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Maki Zenin", mode: substring, weight: 1.0}
+    - {string: "Zenin Maki", mode: substring, weight: 1.0}
+    - {string: "Maki", mode: word_boundary, weight: 0.85}
+
+- id: panda
+  display_name: "Panda"
+  role: supporting
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Panda", mode: requires_context, weight: 0.7}
+  notes: "Only resolved with another JJK character mention — too easily confused with the animal."
+
+- id: inumaki_toge
+  display_name: "Inumaki Toge"
+  role: supporting
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Toge Inumaki", mode: substring, weight: 1.0}
+    - {string: "Inumaki Toge", mode: substring, weight: 1.0}
+    - {string: "Inumaki", mode: word_boundary, weight: 1.0}
+    - {string: "Toge", mode: requires_context, weight: 0.6}
+  notes: "'Toge' alone is too risky (Japanese word for thorn) — requires_context only."
+
+- id: okkotsu_yuta
+  display_name: "Okkotsu Yuta"
+  role: supporting
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Yuta Okkotsu", mode: substring, weight: 1.0}
+    - {string: "Okkotsu Yuta", mode: substring, weight: 1.0}
+    - {string: "Yuta", mode: word_boundary, weight: 0.95}
+    - {string: "Okkotsu", mode: word_boundary, weight: 1.0}
+
+- id: rika
+  display_name: "Rika"
+  role: supporting
+  affiliation: special_grade
+  status: alive
+  aliases:
+    - {string: "Rika Orimoto", mode: substring, weight: 1.0}
+    - {string: "Rika", mode: word_boundary, weight: 0.9}
+
+- id: choso
+  display_name: "Choso"
+  role: supporting
+  affiliation: jujutsu_high
+  status: deceased
+  aliases:
+    - {string: "Choso", mode: word_boundary, weight: 1.0}
+
+- id: yuki_tsukumo
+  display_name: "Yuki Tsukumo"
+  role: supporting
+  affiliation: jujutsu_high
+  status: deceased
+  aliases:
+    - {string: "Yuki Tsukumo", mode: substring, weight: 1.0}
+    - {string: "Tsukumo Yuki", mode: substring, weight: 1.0}
+    - {string: "Tsukumo", mode: word_boundary, weight: 0.95}
+
+- id: higuruma_hiromi
+  display_name: "Higuruma Hiromi"
+  role: supporting
+  affiliation: jujutsu_high
+  status: deceased
+  aliases:
+    - {string: "Hiromi Higuruma", mode: substring, weight: 1.0}
+    - {string: "Higuruma Hiromi", mode: substring, weight: 1.0}
+    - {string: "Higuruma", mode: word_boundary, weight: 1.0}
+
+- id: hakari_kinji
+  display_name: "Hakari Kinji"
+  role: supporting
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Kinji Hakari", mode: substring, weight: 1.0}
+    - {string: "Hakari Kinji", mode: substring, weight: 1.0}
+    - {string: "Hakari", mode: word_boundary, weight: 1.0}
+
+- id: kashimo
+  display_name: "Kashimo"
+  role: minor
+  affiliation: curse_user
+  status: deceased
+  aliases:
+    - {string: "Kashimo", mode: word_boundary, weight: 1.0}
+
+- id: jogo
+  display_name: "Jogo"
+  role: antagonist
+  affiliation: special_grade
+  status: deceased
+  aliases:
+    - {string: "Jogo", mode: word_boundary, weight: 1.0}
+
+- id: hanami
+  display_name: "Hanami"
+  role: antagonist
+  affiliation: special_grade
+  status: deceased
+  aliases:
+    - {string: "Hanami", mode: requires_context, weight: 0.7}
+  notes: "'Hanami' overlaps with the cherry-blossom custom — requires_context."
+
+- id: mahito
+  display_name: "Mahito"
+  role: antagonist
+  affiliation: special_grade
+  status: deceased
+  aliases:
+    - {string: "Mahito", mode: word_boundary, weight: 1.0}
+
+- id: dagon
+  display_name: "Dagon"
+  role: antagonist
+  affiliation: special_grade
+  status: deceased
+  aliases:
+    - {string: "Dagon", mode: word_boundary, weight: 0.95}
+
+- id: mahoraga
+  display_name: "Mahoraga"
+  role: minor
+  affiliation: special_grade
+  status: deceased
+  aliases:
+    - {string: "Mahoraga", mode: word_boundary, weight: 1.0}
+    - {string: "8-Handled Sword Divergent Sila", mode: substring, weight: 1.0}
+
+- id: tengen
+  display_name: "Tengen"
+  role: supporting
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Tengen", mode: word_boundary, weight: 0.85}
+  notes: "Cross-collision with Demon Slayer's Tengen Uzui — 0.85 weight."
+
+- id: gakuganji_yoshinobu
+  display_name: "Gakuganji Yoshinobu"
+  role: minor
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Yoshinobu Gakuganji", mode: substring, weight: 1.0}
+    - {string: "Gakuganji", mode: word_boundary, weight: 1.0}
+
+- id: ino_takuma
+  display_name: "Ino Takuma"
+  role: minor
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Takuma Ino", mode: substring, weight: 1.0}
+    - {string: "Ino Takuma", mode: substring, weight: 1.0}
+    - {string: "Ino", mode: word_boundary, weight: 0.85}
+
+- id: miwa_kasumi
+  display_name: "Miwa Kasumi"
+  role: minor
+  affiliation: jujutsu_high
+  status: alive
+  aliases:
+    - {string: "Kasumi Miwa", mode: substring, weight: 1.0}
+    - {string: "Miwa Kasumi", mode: substring, weight: 1.0}
+    - {string: "Miwa", mode: word_boundary, weight: 0.9}
+
+- id: toji_fushiguro
+  display_name: "Toji Fushiguro"
+  role: antagonist
+  affiliation: curse_user
+  status: deceased
+  aliases:
+    - {string: "Toji Fushiguro", mode: substring, weight: 1.0}
+    - {string: "Fushiguro Toji", mode: substring, weight: 1.0}
+    - {string: "Toji", mode: word_boundary, weight: 0.95}
+
+- id: yaga_masamichi
+  display_name: "Yaga Masamichi"
+  role: minor
+  affiliation: jujutsu_high
+  status: deceased
+  aliases:
+    - {string: "Masamichi Yaga", mode: substring, weight: 1.0}
+    - {string: "Yaga", mode: word_boundary, weight: 0.95}
+
+- id: yorozu
+  display_name: "Yorozu"
+  role: minor
+  affiliation: curse_user
+  status: deceased
+  aliases:
+    - {string: "Yorozu", mode: word_boundary, weight: 1.0}
