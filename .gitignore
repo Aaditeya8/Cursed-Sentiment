@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build outputs
+build/
+dist/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Data — bronze and silver are huge and recoverable; gold is small and committed.
+data/bronze/
+data/silver/
+
+# State carries the watermarks and the classifier cache; we WANT to commit these
+# so the cron has continuity across runs and rebuilds, but ignore everything else.
+data/_state/*
+!data/_state/.gitkeep
+!data/_state/watermarks.json
+!data/_state/classifier_cache.jsonl
+!data/_state/silver_processed.json
+
+# Site build artifacts
+site/node_modules/
+site/.next/
+site/out/
+site/next-env.d.ts
+site/public/data/
+site/tsconfig.tsbuildinfo
+
+# Secrets
+.env
+.env.local
