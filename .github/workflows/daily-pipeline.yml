@@ -1,0 +1,85 @@
+name: daily-pipeline
+
+# Runs the daily Cursed Sentiment pipeline:
+#   1. Restore bronze/silver state from the previous run (committed gold + _state).
+#   2. PRAW incremental → bronze.
+#   3. Bronze → silver clean.
+#   4. Silver → sentiment classification (with persistent JSONL cache).
+#   5. Silver → gold aggregations (dims, facts, weekly rollups, gege moments).
+#   6. Commit small gold parquets + state files back to the repo.
+#   7. On failure, open an issue with logs attached.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC daily
+  workflow_dispatch:       # also let us trigger manually from the Actions tab
+
+permissions:
+  contents: write   # needed to commit gold + state back
+  issues: write     # needed to open failure issues
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Daily Reddit ingest (PRAW → bronze)
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        run: uv run cursed daily
+
+      - name: Bronze → silver clean
+        env:
+          CURSED_AUTHOR_SALT: ${{ secrets.CURSED_AUTHOR_SALT }}
+        run: uv run cursed silver
+
+      - name: Sentiment classification
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: uv run cursed classify
+
+      - name: Build gold aggregations
+        run: uv run cursed gold
+
+      - name: Show pipeline status
+        run: uv run cursed status
+        if: always()
+
+      - name: Commit gold + state back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gold data/_state || true
+          if ! git diff --staged --quiet; then
+            git commit -m "ci: refresh gold + state ($(date -u +%Y-%m-%d))"
+            git push
+          else
+            echo "No gold or state changes to commit."
+          fi
+
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `daily-pipeline failed (${new Date().toISOString().slice(0,10)})`,
+              body: `The daily pipeline failed. Logs: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['ci-failure'],
+            });
