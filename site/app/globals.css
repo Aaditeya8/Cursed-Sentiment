@@ -1,0 +1,48 @@
+/* Field-manual palette as CSS variables.
+   Tailwind config (tailwind.config.ts) maps these to utility classes;
+   inline styles in components use the variables directly when they
+   need a value Tailwind can't express (e.g., a Recharts stroke). */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-ink:     #0a0a0a;
+  --color-bone:    #e8e6e3;
+  --color-smoke:   #9a9890;
+  --color-moss:    #8a8f7a;
+  --color-gold:    #e0a82e;
+  --color-indigo:  #6366f1;
+  --color-crimson: #c92a2a;
+}
+
+html,
+body {
+  background-color: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text {
+  fill: var(--color-smoke) !important;
+  color: var(--color-smoke) !important;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 11px;
+}
+
+.recharts-cartesian-grid line {
+  stroke: rgba(154, 152, 144, 0.12);
+}
+
+html {
+  scroll-behavior: smooth;
+}
