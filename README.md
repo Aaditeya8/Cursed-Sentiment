@@ -33,4 +33,4 @@ Move classifier confidence into the polarisation math. Right now polarisation is
 Try fine-tuning a small BERT on the labeled real eval as an A/B against the LLM. Probably wouldn't beat Llama 3.1 on edge cases, but the eval discipline would tell us for sure.
 
 Built by
-Aaditeya Sharma — data engineer 
+Aaditeya Sharma — data engineer in Delhi-NCR
