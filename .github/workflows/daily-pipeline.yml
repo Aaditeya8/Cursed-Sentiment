@@ -35,11 +35,7 @@ jobs:
       - name: Install Python deps
         run: uv sync --extra dev
 
-      - name: Daily Reddit ingest (PRAW → bronze)
-        env:
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+      - name: Daily ingest (Arctic Shift → bronze)
         run: uv run cursed daily
 
       - name: Bronze → silver clean

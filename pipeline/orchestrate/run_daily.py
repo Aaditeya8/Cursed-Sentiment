@@ -28,14 +28,14 @@ from __future__ import annotations
 
 import json
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pyarrow.parquet as pq
 import structlog
 import typer
 
-from pipeline.extract import arctic_shift, reddit_praw
+from pipeline.extract import arctic_shift
 from pipeline.extract._common import UTC, DataPaths, SUBREDDITS, WatermarkStore
 from pipeline.load import build_gold
 from pipeline.transform import clean as silver_clean
@@ -52,17 +52,26 @@ app = typer.Typer(
 
 
 @app.command()
-def daily() -> None:
-    """PRAW incremental scrape of all configured subreddits into bronze.
+def daily(
+    days: int = typer.Option(2, help="How many trailing days of data to pull"),
+) -> None:
+    """Daily incremental ingestion via Arctic Shift.
 
-    Reads watermarks from ``data/_state/watermarks.json`` and only fetches
-    posts created since the last run. Updates watermarks atomically so a
-    crash mid-run doesn't lose progress on subreddits already processed.
+    Pulls the trailing N days of posts and comments from each subreddit.
+    Two days by default — gives a 24-hour overlap that silver-layer dedup
+    will collapse, so a missed run doesn't create gaps.
+
+    Arctic Shift is the project's only live data source as of v1: Reddit
+    closed self-service OAuth in Nov 2025 (Responsible Builder Policy),
+    making PRAW unavailable without prior approval. Arctic Shift archives
+    Reddit publicly and keeps fresh enough for a daily-cadence dashboard.
     """
-    counts = reddit_praw.daily()
+    now = datetime.now(tz=UTC)
+    after = now - timedelta(days=days)
+    counts = arctic_shift.backfill(after=after, before=now)
     typer.echo(
-        f"Daily ingest: posts={counts.posts_fetched} "
-        f"comments={counts.comments_fetched}"
+        f"Daily ingest (Arctic Shift, last {days}d): "
+        f"posts={counts.posts_fetched} comments={counts.comments_fetched}"
     )
 
 

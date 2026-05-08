@@ -90,9 +90,13 @@ The eight few-shot examples each teach a specific JJK-fandom idiom, tagged in th
 
 `reference/events.yaml` is hand-curated: chapter number, release date, arc, one-line description, spoiler-intensity tag. The dashboard overlays these as vertical guidelines on the headline chart; the Gege-moment detector pairs each detected sentiment shift with the closest event within ±7 days.
 
-### Rate-limit pragmatism
+### Single-source ingestion via Arctic Shift
 
-Reddit's API can't naively serve five years of historical data. The solution is dual-source: PRAW for the daily incremental scrape (which Reddit itself supports cleanly), Arctic Shift for the historical backfill (which is a community-run successor to Pushshift). Both produce the same bronze schema.
+The original v1 plan was a dual-source ingestion pattern: PRAW for the daily incremental scrape, Arctic Shift for the historical backfill. In November 2025 Reddit shipped the Responsible Builder Policy and closed self-service OAuth approval — new PRAW credentials now require Reddit's manual review with no committed turnaround time.
+
+Rather than block the project on a manual approval pipeline, the daily cron pulls a 2-day rolling window from Arctic Shift, which already serves both historical and recent data and remains freely accessible. The silver-layer dedup collapses the 24-hour overlap so a missed run doesn't create gaps. The tradeoff is ~12-24 hours of additional latency on the freshest data — invisible at the weekly-aggregation grain the dashboard ships.
+
+The `pipeline/extract/reddit_praw.py` module is retained, untested-against-live, in case Reddit's policy posture changes.
 
 ## Cost ceiling
 
