@@ -57,10 +57,10 @@ export function CharacterModal({
               {summary.display_name}
             </h2>
             <div className="font-mono text-xs text-smoke mt-2 tabular">
-              {summary.mentions.toLocaleString()} mentions ·{" "}
-              mean {summary.mean_sentiment_score >= 0 ? "+" : ""}
-              {summary.mean_sentiment_score.toFixed(2)} ·{" "}
-              polarisation {summary.polarisation_index.toFixed(2)}
+              {Number(summary.mentions).toLocaleString()} mentions ·{" "}
+              mean {Number(summary.mean_sentiment_score) >= 0 ? "+" : ""}
+              {Number(summary.mean_sentiment_score).toFixed(2)} ·{" "}
+              polarisation {Number(summary.polarisation_index ?? 0).toFixed(2)}
             </div>
           </div>
           <button
@@ -77,7 +77,7 @@ export function CharacterModal({
           title="The positive camp"
           tone="positive"
           summary={summary.positive_summary}
-          examples={summary.positive_examples}
+          examples={toArray(summary.positive_examples)}
         />
 
         {/* negative camp */}
@@ -85,7 +85,7 @@ export function CharacterModal({
           title="The critical camp"
           tone="negative"
           summary={summary.negative_summary}
-          examples={summary.negative_examples}
+          examples={toArray(summary.negative_examples)}
         />
 
         {/* footer */}
@@ -98,6 +98,13 @@ export function CharacterModal({
   );
 }
 
+interface QuoteRow {
+  text: string;
+  score: number;
+  subreddit: string;
+  permalink: string;
+}
+
 function Camp({
   title,
   tone,
@@ -107,12 +114,7 @@ function Camp({
   title: string;
   tone: "positive" | "negative";
   summary: string;
-  examples: Array<{
-    text: string;
-    score: number;
-    subreddit: string;
-    permalink: string;
-  }>;
+  examples: QuoteRow[];
 }) {
   const accentClass = tone === "positive" ? "border-gold/60" : "border-crimson/60";
   return (
@@ -127,18 +129,12 @@ function Camp({
             top-upvoted quotes
           </div>
           {examples.map((q, i) => (
-            <a
-              key={i}
-              href={q.permalink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block border-l border-smoke/30 pl-4 py-1 hover:border-bone transition-colors"
-            >
+            <a key={i} href={q.permalink} target="_blank" rel="noopener noreferrer" className="block border-l border-smoke/30 pl-4 py-1 hover:border-bone transition-colors">
               <div className="font-mono text-sm text-bone leading-relaxed">
                 &ldquo;{q.text}&rdquo;
               </div>
               <div className="font-mono text-xs text-smoke mt-1 tabular">
-                r/{q.subreddit} · {q.score.toLocaleString()}↑ · permalink ↗
+                r/{q.subreddit} · {Number(q.score).toLocaleString()}↑ · permalink ↗
               </div>
             </a>
           ))}
@@ -146,4 +142,25 @@ function Camp({
       )}
     </section>
   );
+}
+
+/**
+ * DuckDB-WASM returns list<struct> columns as Arrow Vector objects, not
+ * plain JS arrays. We coerce to a plain array of plain objects before
+ * mapping; .toJSON() on each Arrow row flattens nested fields too.
+ */
+function toArray(v: unknown): QuoteRow[] {
+  if (!v) return [];
+  if (Array.isArray(v)) return v as QuoteRow[];
+
+  // Arrow Vector — has a toArray() method
+  const maybe = v as { toArray?: () => unknown[] };
+  if (typeof maybe.toArray === "function") {
+    return maybe.toArray().map((row) => {
+      const r = row as { toJSON?: () => QuoteRow };
+      if (r && typeof r.toJSON === "function") return r.toJSON();
+      return row as QuoteRow;
+    });
+  }
+  return [];
 }
