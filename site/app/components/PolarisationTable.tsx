@@ -38,9 +38,9 @@ export function PolarisationTable() {
         <tbody className="text-bone">
           {data
             .filter((r) => r.polarisation_index !== null && !isNaN(r.polarisation_index))
-            .map((r) => (
+            .map((r, i) => (
             <tr key={r.character_id} className="border-b border-smoke/10">
-              <td className="py-3 pr-4 text-smoke tabular">{r.polarisation_rank}</td>
+              <td className="py-3 pr-4 text-smoke tabular">{i + 1}</td>
               <td className="py-3 pr-4">{r.display_name}</td>
               <td className="py-3 px-4 text-right tabular">
                 {Number(r.total_mentions).toLocaleString()}

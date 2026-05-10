@@ -20,16 +20,28 @@ import {
   type EventRow,
 } from "@/lib/queries";
 
+// Six visually distinct colors for the top-6 characters. Picked to be
+// discriminable on the dark background and from each other (no
+// rose-vs-pink confusion). Stable mapping ensures the same character
+// always gets the same color across re-renders.
 const CHARACTER_COLORS: Record<string, string> = {
-  "Gojo Satoru":     "var(--color-bone)",
-  "Ryomen Sukuna":   "var(--color-gold)",
-  "Itadori Yuji":    "var(--color-indigo)",
-  "Fushiguro Megumi": "#7c9b8a",
-  "Kugisaki Nobara": "#b88a4d",
-  "Geto Suguru":     "var(--color-moss)",
+  "Gojo Satoru":      "#e8e1d3",  // warm bone
+  "Ryomen Sukuna":    "#d4af37",  // gold
+  "Itadori Yuji":     "#8da0cb",  // soft indigo
+  "Fushiguro Megumi": "#7fc8a9",  // sage green
+  "Kugisaki Nobara":  "#e07b91",  // rose
+  "Geto Suguru":      "#c084fc",  // violet
 };
 
-const fallbackColor = "#7c8089";
+// Fallback palette: if a character not in CHARACTER_COLORS shows up in
+// the top-6 (e.g., after a chapter-week shift the leaderboard moves),
+// these fill in. Each is visually distinct from the named ones.
+const FALLBACK_COLORS = [
+  "#f7a072",  // peach
+  "#5eb3d6",  // cyan
+  "#a8d672",  // lime
+  "#b88a4d",  // tobacco
+];
 
 /**
  * Sentiment-over-time for the top 6 characters, with a single reserved
@@ -89,12 +101,15 @@ export function HeadlineChart() {
             />
             <Tooltip content={<TooltipBox />} />
 
-            {characters.map((name) => (
+            {characters.map((name, i) => (
               <Line
                 key={name}
                 type="monotone"
                 dataKey={name}
-                stroke={CHARACTER_COLORS[name] ?? fallbackColor}
+                stroke={
+                  CHARACTER_COLORS[name] ??
+                  FALLBACK_COLORS[i % FALLBACK_COLORS.length]
+                }
                 strokeWidth={1.5}
                 dot={false}
                 isAnimationActive={false}
