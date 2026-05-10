@@ -5,11 +5,13 @@ import type { CharSummaryRow } from "@/lib/queries";
 
 /**
  * Modal that opens when a user clicks one of the three hero stats
- * (warmest / coldest / most polarising). Shows the LLM-generated
- * synthesis of what each fandom camp is saying, plus actual
- * top-upvoted post quotes with Reddit permalinks.
+ * (warmest / coldest / most polarising). Layout adapts by category:
  *
- * The summaries are pre-computed by `cursed reason` and cached in
+ *   - warmest         → single camp (positive only) — explains the love
+ *   - coldest         → single camp (negative only) — explains the cold reception
+ *   - most_polarising → both camps side by side — the split IS the story
+ *
+ * Summaries are pre-computed by `cursed reason` and cached in
  * gold/char_summary.parquet. No LLM call happens at view time.
  */
 export function CharacterModal({
@@ -19,7 +21,6 @@ export function CharacterModal({
   summary: CharSummaryRow;
   onClose: () => void;
 }) {
-  // Close on Escape; restore body scroll on unmount.
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -37,6 +38,10 @@ export function CharacterModal({
     coldest: "coldest reception",
     most_polarising: "most polarising",
   };
+
+  const isPolarising = summary.category === "most_polarising";
+  const isWarmest = summary.category === "warmest";
+  const isColdest = summary.category === "coldest";
 
   return (
     <div
@@ -72,21 +77,41 @@ export function CharacterModal({
           </button>
         </div>
 
-        {/* positive camp */}
-        <Camp
-          title="The positive camp"
-          tone="positive"
-          summary={summary.positive_summary}
-          examples={toArray(summary.positive_examples)}
-        />
+        {/* body — adapts by category */}
+        {isPolarising && (
+          <>
+            <Camp
+              title="The positive camp"
+              tone="positive"
+              summary={summary.positive_summary}
+              examples={toArray(summary.positive_examples)}
+            />
+            <Camp
+              title="The critical camp"
+              tone="negative"
+              summary={summary.negative_summary}
+              examples={toArray(summary.negative_examples)}
+            />
+          </>
+        )}
 
-        {/* negative camp */}
-        <Camp
-          title="The critical camp"
-          tone="negative"
-          summary={summary.negative_summary}
-          examples={toArray(summary.negative_examples)}
-        />
+        {isWarmest && (
+          <Camp
+            title="Why the fandom is drawn to them"
+            tone="positive"
+            summary={summary.positive_summary}
+            examples={toArray(summary.positive_examples)}
+          />
+        )}
+
+        {isColdest && (
+          <Camp
+            title="Why the fandom is cold toward them"
+            tone="negative"
+            summary={summary.negative_summary}
+            examples={toArray(summary.negative_examples)}
+          />
+        )}
 
         {/* footer */}
         <div className="mt-10 pt-6 border-t border-smoke/20 font-mono text-xs text-smoke">
@@ -122,7 +147,7 @@ function Camp({
       <h3 className={`font-display italic text-xl text-bone mb-4 pl-3 border-l-2 ${accentClass}`}>
         {title}
       </h3>
-      <p className="text-bone leading-relaxed mb-6">{summary}</p>
+      <p className="text-bone leading-relaxed mb-6 whitespace-pre-line">{summary}</p>
       {examples.length > 0 && (
         <div className="space-y-3">
           <div className="font-mono text-xs uppercase tracking-wider text-smoke">
@@ -146,14 +171,11 @@ function Camp({
 
 /**
  * DuckDB-WASM returns list<struct> columns as Arrow Vector objects, not
- * plain JS arrays. We coerce to a plain array of plain objects before
- * mapping; .toJSON() on each Arrow row flattens nested fields too.
+ * plain JS arrays. Coerce before mapping; toJSON() flattens nested fields.
  */
 function toArray(v: unknown): QuoteRow[] {
   if (!v) return [];
   if (Array.isArray(v)) return v as QuoteRow[];
-
-  // Arrow Vector — has a toArray() method
   const maybe = v as { toArray?: () => unknown[] };
   if (typeof maybe.toArray === "function") {
     return maybe.toArray().map((row) => {
