@@ -1,7 +1,10 @@
 import { GegeMomentsList } from "./components/GegeMomentsList";
 import { HeadlineChart } from "./components/HeadlineChart";
 import { HeroStats } from "./components/HeroStats";
+import { LastUpdated } from "./components/LastUpdated";
 import { PolarisationTable } from "./components/PolarisationTable";
+import { SentimentLandscape } from "./components/SentimentLandscape";
+import { SubredditBreakdown } from "./components/SubredditBreakdown";
 
 export default function HomePage() {
   return (
@@ -20,11 +23,16 @@ export default function HomePage() {
 
       <HeroStats />
       <HeadlineChart />
+      <SentimentLandscape />
+      <SubredditBreakdown />
       <PolarisationTable />
       <GegeMomentsList />
 
-      <footer className="mt-24 pt-12 border-t border-smoke/20 font-mono text-xs text-smoke">
-        Built by <a href="https://aaditeyas.vercel.app" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">Aaditeya Sharma</a>. Source on <a href="https://github.com/Aaditeya8/Cursed-Sentiment" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">GitHub</a>.
+      <footer className="mt-24 pt-12 border-t border-smoke/20 font-mono text-xs text-smoke flex flex-wrap justify-between gap-4">
+        <div>
+          Built by <a href="https://aaditeyas.vercel.app" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">Aaditeya Sharma</a>. Source on <a href="https://github.com/Aaditeya8/Cursed-Sentiment" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">GitHub</a>.
+        </div>
+        <LastUpdated />
       </footer>
     </main>
   );

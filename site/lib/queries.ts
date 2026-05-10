@@ -120,3 +120,32 @@ export const Q_GEGE_MOMENTS = `
   ORDER BY m.week_start DESC
   LIMIT 10
 `;
+
+export const Q_SUBREDDIT_BREAKDOWN = `
+  WITH all_facts AS (
+    SELECT character_id, subreddit FROM read_parquet('fact_post_sentiment.parquet')
+    UNION ALL
+    SELECT character_id, subreddit FROM read_parquet('fact_comment_sentiment.parquet')
+  ),
+  top_chars AS (
+    SELECT character_id
+    FROM read_parquet('agg_polarisation.parquet')
+    ORDER BY total_mentions DESC
+    LIMIT 6
+  )
+  SELECT
+    c.display_name,
+    f.subreddit,
+    COUNT(*) AS mention_count
+  FROM all_facts f
+  JOIN top_chars tc USING (character_id)
+  JOIN read_parquet('dim_character.parquet') c USING (character_id)
+  GROUP BY c.display_name, f.subreddit
+  ORDER BY c.display_name, f.subreddit
+`;
+
+export interface SubredditBreakdownRow {
+  display_name: string;
+  subreddit: string;
+  mention_count: number;
+}
