@@ -35,8 +35,15 @@ site/node_modules/
 site/.next/
 site/out/
 site/next-env.d.ts
-site/public/data/
 site/tsconfig.tsbuildinfo
+
+# Site public data — ignore everything except parquets and eval JSON,
+# which are the gold-layer files DuckDB-WASM reads in the browser.
+# Vercel's build sandbox is rooted at site/, so the data must live
+# under site/public/data/ to be reachable during the build.
+site/public/data/*
+!site/public/data/*.parquet
+!site/public/data/*.json
 
 # Secrets
 .env

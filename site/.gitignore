@@ -10,7 +10,9 @@ out/
 next-env.d.ts
 
 # Synced gold parquets (rebuilt by predev/prebuild from ../data/gold/)
-public/data/
+public/data/*
+!public/data/*.parquet
+!public/data/*.json
 
 # Logs
 npm-debug.log*
