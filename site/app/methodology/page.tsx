@@ -4,7 +4,19 @@ import { useEffect, useState } from "react";
 
 interface EvalAxis {
   accuracy: number;
-  per_class: Record<string, { precision: number; recall: number; f1: number; support: number }>;
+  per_class: Record<
+    string,
+    { precision: number; recall: number; f1: number; support: number }
+  >;
+}
+
+interface EvalMiss {
+  id: string;
+  category: string;
+  text: string;
+  wrong_axes: string[];
+  expected: { sentiment: string; intensity: string; target: string };
+  predicted: { sentiment: string; intensity: string; target: string };
 }
 
 interface EvalResults {
@@ -16,6 +28,7 @@ interface EvalResults {
   intensity: EvalAxis;
   target: EvalAxis;
   per_category: Record<string, { total: number; all_correct: number }>;
+  misses: EvalMiss[];
 }
 
 /**
@@ -44,21 +57,41 @@ export default function MethodologyPage() {
           How this dashboard was built — and why you should be skeptical of it.
         </h1>
         <p className="mt-6 text-smoke max-w-2xl leading-relaxed">
-          The dashboard's credibility depends on its methodology being
+          The dashboard&apos;s credibility depends on its methodology being
           legible. This page is the long form. Read it once and decide for
           yourself how much to trust the numbers.
         </p>
+        {evalData && (
+          <div className="mt-6 font-mono text-xs text-smoke tabular">
+            Last classified:{" "}
+            <span className="text-bone">
+              {new Date(evalData.ran_at).toUTCString()}
+            </span>
+          </div>
+        )}
       </header>
 
       <Section title="Data collection">
         <p>
           Reddit posts and comments from r/JuJutsuKaisen, r/Jujutsushi, and
-          r/Jujutsufolk are pulled by two complementary scrapers. PRAW (the
-          official Python Reddit wrapper) handles the daily incremental scrape
-          via authenticated requests; Arctic Shift, a community-run successor
-          to the now-defunct Pushshift, handles the multi-year historical
-          backfill. Both produce identical bronze-layer schemas so downstream
-          code never has to know which source a row came from.
+          r/Jujutsufolk are pulled from{" "}
+          <a
+            href="https://arctic-shift.photon-reddit.com/"
+            className="text-bone underline decoration-smoke/40 underline-offset-4 hover:decoration-bone"
+          >
+            Arctic Shift
+          </a>
+          , a community-run successor to the now-defunct Pushshift. The
+          original v1 plan paired Arctic Shift for historical backfill with
+          PRAW (the official Python Reddit wrapper) for the daily incremental
+          scrape, but in November 2025 Reddit shipped the Responsible Builder
+          Policy and closed self-service OAuth approval — new PRAW credentials
+          now require manual Reddit review with no committed turnaround. The
+          daily cron pulls a 2-day rolling window from Arctic Shift instead;
+          silver-layer dedup collapses the 24-hour overlap so a missed run
+          doesn&apos;t create gaps. Tradeoff: 12-24 hours of additional
+          latency on the freshest data, invisible at the weekly-aggregation
+          grain the dashboard ships.
         </p>
         <p>
           Author usernames are SHA-256-hashed with a per-deployment salt
@@ -128,7 +161,10 @@ export default function MethodologyPage() {
               <code className="text-bone">uv run cursed eval</code>.
             </div>
           ) : evalData ? (
-            <EvalTables data={evalData} />
+            <>
+              <AccuracyBadges data={evalData} />
+              <EvalTables data={evalData} />
+            </>
           ) : (
             <div className="h-32 bg-smoke/5 animate-pulse" />
           )}
@@ -174,6 +210,19 @@ export default function MethodologyPage() {
         </p>
       </Section>
 
+      <Section title="Where the classifier gets it wrong">
+        <p className="text-smoke">
+          The cases below come straight from the eval run — they are
+          classifications the model got wrong on at least one axis. Showing
+          them here is deliberate: most portfolios hide their failures, this
+          one features them. If you spot a pattern, that&apos;s a v2 prompt
+          revision waiting to happen.
+        </p>
+        {evalData && evalData.misses.length > 0 && (
+          <MissesTable misses={evalData.misses.slice(0, 8)} />
+        )}
+      </Section>
+
       <Section title="Why you should be skeptical">
         <p>
           A few honest limitations the methodology can&apos;t paper over:
@@ -217,11 +266,24 @@ export default function MethodologyPage() {
             0.95-confidence positive in the index calculation. Folding
             confidence in is on the v2 list.
           </li>
+          <li>
+            <span className="text-bone">
+              The daily window is 2 days wide, not 1.
+            </span>{" "}
+            Belt-and-suspenders against a missed cron — silver-layer dedup
+            collapses the 24-hour overlap. Visible in the cron logs but
+            invisible in the dashboard.
+          </li>
         </ul>
       </Section>
 
       <footer className="mt-24 pt-12 border-t border-smoke/20 font-mono text-xs text-smoke">
-        <a href="/" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">← back to the dashboard</a>
+        <a
+          href="/"
+          className="underline decoration-smoke/40 underline-offset-4 hover:text-bone"
+        >
+          ← back to the dashboard
+        </a>
       </footer>
     </main>
   );
@@ -246,12 +308,38 @@ function Section({
   );
 }
 
+function AccuracyBadges({ data }: { data: EvalResults }) {
+  const axes = [
+    { name: "sentiment", value: data.sentiment.accuracy },
+    { name: "intensity", value: data.intensity.accuracy },
+    { name: "target", value: data.target.accuracy },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-4 mb-8">
+      {axes.map((a) => (
+        <div
+          key={a.name}
+          className="border border-smoke/20 px-4 py-3"
+        >
+          <div className="font-mono text-xs uppercase tracking-wider text-smoke">
+            {a.name}
+          </div>
+          <div className="font-display italic text-2xl text-bone tabular mt-1">
+            {(a.value * 100).toFixed(1)}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function EvalTables({ data }: { data: EvalResults }) {
   return (
     <div className="space-y-8">
       <div className="font-mono text-xs text-smoke">
-        prompt {data.prompt_version} · model {data.model} · {data.eval_set_size} cases ·{" "}
-        ran {new Date(data.ran_at).toISOString().slice(0, 10)}
+        prompt {data.prompt_version} · model {data.model} ·{" "}
+        {data.eval_set_size} cases · ran{" "}
+        {new Date(data.ran_at).toISOString().slice(0, 10)}
       </div>
       <AxisTable name="sentiment" axis={data.sentiment} />
       <AxisTable name="intensity" axis={data.intensity} />
@@ -280,14 +368,55 @@ function AxisTable({ name, axis }: { name: string; axis: EvalAxis }) {
           {Object.entries(axis.per_class).map(([cls, m]) => (
             <tr key={cls} className="border-b border-smoke/10">
               <td className="py-2 pr-4">{cls}</td>
-              <td className="py-2 px-4 text-right tabular">{m.precision.toFixed(2)}</td>
-              <td className="py-2 px-4 text-right tabular">{m.recall.toFixed(2)}</td>
-              <td className="py-2 px-4 text-right tabular">{m.f1.toFixed(2)}</td>
-              <td className="py-2 pl-4 text-right tabular text-smoke">{m.support}</td>
+              <td className="py-2 px-4 text-right tabular">
+                {m.precision.toFixed(2)}
+              </td>
+              <td className="py-2 px-4 text-right tabular">
+                {m.recall.toFixed(2)}
+              </td>
+              <td className="py-2 px-4 text-right tabular">
+                {m.f1.toFixed(2)}
+              </td>
+              <td className="py-2 pl-4 text-right tabular text-smoke">
+                {m.support}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function MissesTable({ misses }: { misses: EvalMiss[] }) {
+  return (
+    <div className="mt-6 space-y-4">
+      {misses.map((m) => (
+        <div
+          key={m.id}
+          className="border-l-2 border-gold/50 pl-4 py-1 font-mono text-sm"
+        >
+          <div className="text-bone leading-relaxed">
+            &ldquo;{m.text}&rdquo;
+          </div>
+          <div className="mt-2 text-xs text-smoke">
+            <span className="text-gold">{m.wrong_axes.join(", ")}</span> ·
+            expected{" "}
+            <span className="text-bone">
+              {m.wrong_axes
+                .map((axis) => m.expected[axis as keyof typeof m.expected])
+                .join("/")}
+            </span>
+            , got{" "}
+            <span className="text-bone">
+              {m.wrong_axes
+                .map((axis) => m.predicted[axis as keyof typeof m.predicted])
+                .join("/")}
+            </span>{" "}
+            · category {m.category}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
