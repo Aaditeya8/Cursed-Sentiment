@@ -1,0 +1,711 @@
+{
+  "eval_set_size": 55,
+  "prompt_version": "v1",
+  "model": "llama-3.1-8b-instant",
+  "ran_at": "2026-05-09T06:27:17.665970+00:00",
+  "sentiment": {
+    "accuracy": 0.8,
+    "per_class": {
+      "positive": {
+        "precision": 0.724,
+        "recall": 0.875,
+        "f1": 0.792,
+        "support": 24
+      },
+      "negative": {
+        "precision": 0.882,
+        "recall": 0.938,
+        "f1": 0.909,
+        "support": 16
+      },
+      "mixed": {
+        "precision": 1.0,
+        "recall": 0.333,
+        "f1": 0.5,
+        "support": 6
+      },
+      "neutral": {
+        "precision": 0.857,
+        "recall": 0.667,
+        "f1": 0.75,
+        "support": 9
+      }
+    },
+    "confusion": [
+      {
+        "actual": "mixed",
+        "predicted": "mixed",
+        "count": 2
+      },
+      {
+        "actual": "mixed",
+        "predicted": "positive",
+        "count": 4
+      },
+      {
+        "actual": "negative",
+        "predicted": "negative",
+        "count": 15
+      },
+      {
+        "actual": "negative",
+        "predicted": "positive",
+        "count": 1
+      },
+      {
+        "actual": "neutral",
+        "predicted": "neutral",
+        "count": 6
+      },
+      {
+        "actual": "neutral",
+        "predicted": "positive",
+        "count": 3
+      },
+      {
+        "actual": "positive",
+        "predicted": "negative",
+        "count": 2
+      },
+      {
+        "actual": "positive",
+        "predicted": "neutral",
+        "count": 1
+      },
+      {
+        "actual": "positive",
+        "predicted": "positive",
+        "count": 21
+      }
+    ]
+  },
+  "intensity": {
+    "accuracy": 0.818,
+    "per_class": {
+      "low": {
+        "precision": 0.75,
+        "recall": 0.75,
+        "f1": 0.75,
+        "support": 8
+      },
+      "medium": {
+        "precision": 0.941,
+        "recall": 0.696,
+        "f1": 0.8,
+        "support": 23
+      },
+      "high": {
+        "precision": 0.767,
+        "recall": 0.958,
+        "f1": 0.852,
+        "support": 24
+      }
+    },
+    "confusion": [
+      {
+        "actual": "high",
+        "predicted": "high",
+        "count": 23
+      },
+      {
+        "actual": "high",
+        "predicted": "medium",
+        "count": 1
+      },
+      {
+        "actual": "low",
+        "predicted": "high",
+        "count": 2
+      },
+      {
+        "actual": "low",
+        "predicted": "low",
+        "count": 6
+      },
+      {
+        "actual": "medium",
+        "predicted": "high",
+        "count": 5
+      },
+      {
+        "actual": "medium",
+        "predicted": "low",
+        "count": 2
+      },
+      {
+        "actual": "medium",
+        "predicted": "medium",
+        "count": 16
+      }
+    ]
+  },
+  "target": {
+    "accuracy": 0.818,
+    "per_class": {
+      "about_character": {
+        "precision": 0.727,
+        "recall": 0.727,
+        "f1": 0.727,
+        "support": 11
+      },
+      "about_arc": {
+        "precision": 0.9,
+        "recall": 0.72,
+        "f1": 0.8,
+        "support": 25
+      },
+      "about_meta": {
+        "precision": 0.792,
+        "recall": 1.0,
+        "f1": 0.884,
+        "support": 19
+      }
+    },
+    "confusion": [
+      {
+        "actual": "about_arc",
+        "predicted": "about_arc",
+        "count": 18
+      },
+      {
+        "actual": "about_arc",
+        "predicted": "about_character",
+        "count": 3
+      },
+      {
+        "actual": "about_arc",
+        "predicted": "about_meta",
+        "count": 4
+      },
+      {
+        "actual": "about_character",
+        "predicted": "about_arc",
+        "count": 2
+      },
+      {
+        "actual": "about_character",
+        "predicted": "about_character",
+        "count": 8
+      },
+      {
+        "actual": "about_character",
+        "predicted": "about_meta",
+        "count": 1
+      },
+      {
+        "actual": "about_meta",
+        "predicted": "about_meta",
+        "count": 19
+      }
+    ]
+  },
+  "per_category": {
+    "killed_me_idiom": {
+      "total": 3,
+      "all_correct": 2
+    },
+    "skull_emoji_amusement": {
+      "total": 2,
+      "all_correct": 0
+    },
+    "gege_affectionate_curse": {
+      "total": 3,
+      "all_correct": 3
+    },
+    "praying_hands_resignation": {
+      "total": 2,
+      "all_correct": 1
+    },
+    "brevity_intensity": {
+      "total": 4,
+      "all_correct": 2
+    },
+    "character_craft_praise": {
+      "total": 3,
+      "all_correct": 3
+    },
+    "character_craft_critique": {
+      "total": 2,
+      "all_correct": 1
+    },
+    "arc_plot_critique": {
+      "total": 3,
+      "all_correct": 3
+    },
+    "arc_plot_praise": {
+      "total": 2,
+      "all_correct": 1
+    },
+    "meta_adaptation_praise": {
+      "total": 1,
+      "all_correct": 1
+    },
+    "meta_adaptation_critique": {
+      "total": 2,
+      "all_correct": 2
+    },
+    "mixed_love_hate": {
+      "total": 3,
+      "all_correct": 2
+    },
+    "neutral_question": {
+      "total": 3,
+      "all_correct": 3
+    },
+    "low_intensity_observation": {
+      "total": 2,
+      "all_correct": 2
+    },
+    "sarcastic_positive_words": {
+      "total": 2,
+      "all_correct": 0
+    },
+    "negative_words_as_praise": {
+      "total": 2,
+      "all_correct": 1
+    },
+    "pure_positive": {
+      "total": 2,
+      "all_correct": 1
+    },
+    "pure_negative": {
+      "total": 2,
+      "all_correct": 0
+    },
+    "multi_character": {
+      "total": 2,
+      "all_correct": 2
+    },
+    "memed_response": {
+      "total": 2,
+      "all_correct": 0
+    },
+    "anime_only_complaint": {
+      "total": 1,
+      "all_correct": 1
+    },
+    "speculation": {
+      "total": 2,
+      "all_correct": 0
+    },
+    "expressed_grief": {
+      "total": 2,
+      "all_correct": 1
+    },
+    "rec_ask": {
+      "total": 1,
+      "all_correct": 0
+    },
+    "fan_theory": {
+      "total": 2,
+      "all_correct": 1
+    }
+  },
+  "misses": [
+    {
+      "id": "ex002",
+      "category": "killed_me_idiom",
+      "text": "I'm crying actual tears at gojo's flashback. why is this so well written",
+      "wrong_axes": [
+        "target"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_character"
+      }
+    },
+    {
+      "id": "ex004",
+      "category": "skull_emoji_amusement",
+      "text": "kashimo really popped out for one chapter then died like that \ud83d\udc80",
+      "wrong_axes": [
+        "sentiment",
+        "intensity",
+        "target"
+      ],
+      "expected": {
+        "sentiment": "mixed",
+        "intensity": "medium",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_character"
+      }
+    },
+    {
+      "id": "ex005",
+      "category": "skull_emoji_amusement",
+      "text": "todo's haircut in s2 ep 1 \ud83d\udc80\ud83d\udc80\ud83d\udc80",
+      "wrong_axes": [
+        "sentiment",
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "mixed",
+        "intensity": "medium",
+        "target": "about_meta"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex010",
+      "category": "praying_hands_resignation",
+      "text": "\ud83d\ude4f please let nobara come back. just one panel. one acknowledgment. anything",
+      "wrong_axes": [
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "medium",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_arc"
+      }
+    },
+    {
+      "id": "ex012",
+      "category": "brevity_intensity",
+      "text": "tragic.",
+      "wrong_axes": [
+        "sentiment"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_arc"
+      }
+    },
+    {
+      "id": "ex014",
+      "category": "brevity_intensity",
+      "text": "this man is unhinged i love him",
+      "wrong_axes": [
+        "target"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_character"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex018",
+      "category": "character_craft_critique",
+      "text": "Megumi as a protagonist falls flat. he's been passive for 200+ chapters and Gege still hasn't given him interiority",
+      "wrong_axes": [
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "medium",
+        "target": "about_character"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_character"
+      }
+    },
+    {
+      "id": "ex024",
+      "category": "arc_plot_praise",
+      "text": "the hidden inventory flashback recontextualizes everything. it's the heart of the whole series tbh",
+      "wrong_axes": [
+        "target"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex030",
+      "category": "mixed_love_hate",
+      "text": "the art is incredible. the dialogue is sometimes janky. taken as a whole I love it but I won't pretend it's perfect",
+      "wrong_axes": [
+        "sentiment"
+      ],
+      "expected": {
+        "sentiment": "mixed",
+        "intensity": "medium",
+        "target": "about_meta"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "medium",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex036",
+      "category": "sarcastic_positive_words",
+      "text": "oh great another flashback chapter. just what we needed at this point in the arc",
+      "wrong_axes": [
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "medium",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "low",
+        "target": "about_arc"
+      }
+    },
+    {
+      "id": "ex037",
+      "category": "sarcastic_positive_words",
+      "text": "wow another chapter where megumi gets sidelined. groundbreaking storytelling really.",
+      "wrong_axes": [
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "medium",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_arc"
+      }
+    },
+    {
+      "id": "ex038",
+      "category": "negative_words_as_praise",
+      "text": "this fight is so unfair I'm losing my mind. why is sukuna like this. WHY IS HE LIKE THIS",
+      "wrong_axes": [
+        "sentiment",
+        "target"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_character"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_arc"
+      }
+    },
+    {
+      "id": "ex041",
+      "category": "pure_positive",
+      "text": "the panel where gojo says nah id win is one of the most iconic moments in modern shounen",
+      "wrong_axes": [
+        "target"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_character"
+      }
+    },
+    {
+      "id": "ex042",
+      "category": "pure_negative",
+      "text": "the ending was deeply unsatisfying. years of buildup for what amounts to a shrug. I'm out.",
+      "wrong_axes": [
+        "target"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex043",
+      "category": "pure_negative",
+      "text": "Gege has no idea how to write female characters. it's been a problem since vol 0 and only gotten worse",
+      "wrong_axes": [
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_meta"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "medium",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex046",
+      "category": "memed_response",
+      "text": "domain expansion: malevolent shrine \ud83d\udd2a\ud83d\udd2a\ud83d\udd2a",
+      "wrong_axes": [
+        "sentiment",
+        "intensity",
+        "target"
+      ],
+      "expected": {
+        "sentiment": "neutral",
+        "intensity": "low",
+        "target": "about_character"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_arc"
+      }
+    },
+    {
+      "id": "ex047",
+      "category": "memed_response",
+      "text": "throughout heaven and earth, I alone am the honored one",
+      "wrong_axes": [
+        "sentiment",
+        "intensity"
+      ],
+      "expected": {
+        "sentiment": "neutral",
+        "intensity": "low",
+        "target": "about_character"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_character"
+      }
+    },
+    {
+      "id": "ex049",
+      "category": "speculation",
+      "text": "what if Yuta was supposed to be the protagonist all along and Itadori was just a red herring",
+      "wrong_axes": [
+        "intensity",
+        "target"
+      ],
+      "expected": {
+        "sentiment": "neutral",
+        "intensity": "medium",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "neutral",
+        "intensity": "low",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex050",
+      "category": "speculation",
+      "text": "calling it now: there's going to be a sequel that recontextualizes the ending",
+      "wrong_axes": [
+        "sentiment"
+      ],
+      "expected": {
+        "sentiment": "neutral",
+        "intensity": "medium",
+        "target": "about_meta"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "medium",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex052",
+      "category": "expressed_grief",
+      "text": "rereading the goodbyes scene and I just. man. why does Gege do this to us",
+      "wrong_axes": [
+        "sentiment",
+        "target"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "high",
+        "target": "about_arc"
+      },
+      "predicted": {
+        "sentiment": "negative",
+        "intensity": "high",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex053",
+      "category": "rec_ask",
+      "text": "if I liked JJK what should I read next? finished the manga and need a fix",
+      "wrong_axes": [
+        "sentiment"
+      ],
+      "expected": {
+        "sentiment": "positive",
+        "intensity": "low",
+        "target": "about_meta"
+      },
+      "predicted": {
+        "sentiment": "neutral",
+        "intensity": "low",
+        "target": "about_meta"
+      }
+    },
+    {
+      "id": "ex054",
+      "category": "fan_theory",
+      "text": "I genuinely think Kenjaku's plan was the most coherent villain plan in modern shounen, even if the execution lost steam",
+      "wrong_axes": [
+        "sentiment"
+      ],
+      "expected": {
+        "sentiment": "mixed",
+        "intensity": "medium",
+        "target": "about_character"
+      },
+      "predicted": {
+        "sentiment": "positive",
+        "intensity": "medium",
+        "target": "about_character"
+      }
+    }
+  ]
+}

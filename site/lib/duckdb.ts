@@ -14,15 +14,25 @@
  *   - Lazy-initialized on first query
  *   - All queries go through `useQuery`, a React hook that handles
  *     loading/error/data states uniformly
- *
- * Why this is in `lib/` not `app/`:
- *   `lib/` is for runtime utilities that don't render UI. The hook does
- *   manage React state (useState, useEffect) but it's exported, not
- *   consumed in place — same way you'd put `useAuth` in a lib folder.
+ *   - Every gold parquet is registered against DuckDB's virtual filesystem
+ *     at init time so queries can reference it by bare filename
  */
 
 import * as duckdb from "@duckdb/duckdb-wasm";
 import { useEffect, useState } from "react";
+
+// Every parquet the dashboard queries. Must match the filenames produced
+// by `pipeline/load/build_gold.py` and synced into public/data by
+// scripts/sync-gold.mjs. Adding a new parquet to gold? Add it here.
+const GOLD_FILES = [
+  "agg_char_week.parquet",
+  "agg_polarisation.parquet",
+  "dim_character.parquet",
+  "dim_event.parquet",
+  "fact_comment_sentiment.parquet",
+  "fact_post_sentiment.parquet",
+  "gege_moments.parquet",
+];
 
 let dbInstance: duckdb.AsyncDuckDB | null = null;
 let dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
@@ -49,6 +59,23 @@ async function initDuckDB(): Promise<duckdb.AsyncDuckDB> {
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
+
+  // Register every gold parquet against DuckDB's virtual filesystem.
+  // Without this, queries fail with "No files found that match the
+  // pattern" — DuckDB-WASM doesn't fetch arbitrary URLs from the page
+  // origin, it needs each filename mapped explicitly to a fetch URL.
+  const baseUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/data`
+      : "/data";
+  for (const file of GOLD_FILES) {
+    await db.registerFileURL(
+      file,
+      `${baseUrl}/${file}`,
+      duckdb.DuckDBDataProtocol.HTTP,
+      false,
+    );
+  }
 
   dbInstance = db;
   return db;
@@ -79,9 +106,6 @@ export async function runQuery<T = Record<string, unknown>>(
   const conn = await db.connect();
   try {
     const result = await conn.query(sql);
-    // The cast is needed because Arrow's row.toJSON() returns a
-    // Record-shaped object but TypeScript can't see that through the
-    // generic StructRow type — we know the shape from the SQL.
     return result
       .toArray()
       .map((row: { toJSON: () => Record<string, unknown> }) =>
@@ -99,7 +123,7 @@ export async function runQuery<T = Record<string, unknown>>(
  *
  * Usage:
  *   const { data, error, loading } = useQuery<MyRow>(
- *     `SELECT * FROM read_parquet('/data/agg_polarisation.parquet')`,
+ *     `SELECT * FROM read_parquet('agg_polarisation.parquet')`,
  *   );
  */
 export function useQuery<T = Record<string, unknown>>(

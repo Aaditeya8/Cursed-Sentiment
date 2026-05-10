@@ -59,7 +59,7 @@ from pipeline.transform.prompts import (
 log = structlog.get_logger(__name__)
 
 # Groq's free tier: 30 RPM ceiling for most models. Stay under it.
-DEFAULT_RATE_PER_SECOND = 0.5  # ~30 RPM with comfortable headroom
+DEFAULT_RATE_PER_SECOND = 4.0  # ~30 RPM with comfortable headroom
 
 # Model and endpoint defaults. Override in the environment to swap providers.
 DEFAULT_MODEL = "llama-3.1-8b-instant"

@@ -30,6 +30,9 @@ import json
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import pyarrow.parquet as pq
 import structlog
@@ -52,26 +55,26 @@ app = typer.Typer(
 
 
 @app.command()
-def daily(
-    days: int = typer.Option(2, help="How many trailing days of data to pull"),
+def classify(
+    posts_only: bool = typer.Option(False, "--posts-only", help="Skip comment classification"),
 ) -> None:
-    """Daily incremental ingestion via Arctic Shift.
+    """Run sentiment classification across silver posts and comments.
 
-    Pulls the trailing N days of posts and comments from each subreddit.
-    Two days by default — gives a 24-hour overlap that silver-layer dedup
-    will collapse, so a missed run doesn't create gaps.
+    Idempotent and cache-aware: only un-cached texts hit the Groq API.
+    Bumping ``PROMPT_VERSION`` in ``pipeline.transform.prompts`` invalidates
+    every cache entry cleanly.
 
-    Arctic Shift is the project's only live data source as of v1: Reddit
-    closed self-service OAuth in Nov 2025 (Responsible Builder Policy),
-    making PRAW unavailable without prior approval. Arctic Shift archives
-    Reddit publicly and keeps fresh enough for a daily-cadence dashboard.
+    Use ``--posts-only`` to skip comments — useful for first-run dashboards
+    where post-level signal is plenty and comments would dominate API budget.
     """
-    now = datetime.now(tz=UTC)
-    after = now - timedelta(days=days)
-    counts = arctic_shift.backfill(after=after, before=now)
+    classifier = classify_sentiment.GroqClassifier.from_env()
+    posts = classify_sentiment.classify_posts(classifier)
+    comments = 0
+    if not posts_only:
+        comments = classify_sentiment.classify_comments(classifier)
     typer.echo(
-        f"Daily ingest (Arctic Shift, last {days}d): "
-        f"posts={counts.posts_fetched} comments={counts.comments_fetched}"
+        f"\nClassified: posts={posts} comments={comments}\n"
+        f"  Bumping PROMPT_VERSION invalidates the cache."
     )
 
 
@@ -92,21 +95,6 @@ def silver() -> None:
         f"{result.posts_silver_total} total · "
         f"comments {result.comments_processed} new / "
         f"{result.comments_silver_total} total"
-    )
-
-
-@app.command()
-def classify() -> None:
-    """Run sentiment classification across silver posts and comments.
-
-    Idempotent and cache-aware: only un-cached texts hit the Groq API.
-    Bumping ``PROMPT_VERSION`` in ``pipeline.transform.prompts`` invalidates
-    every cache entry cleanly.
-    """
-    posts, comments = classify_sentiment.classify_all()
-    typer.echo(
-        f"\nClassified: posts={posts} comments={comments}\n"
-        f"  Bumping PROMPT_VERSION invalidates the cache."
     )
 
 

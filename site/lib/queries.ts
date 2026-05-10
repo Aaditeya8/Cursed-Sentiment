@@ -5,12 +5,10 @@
  * here. Components import the interface and the SQL together; that
  * keeps the chart's "what data do I want" contract in one place and
  * out of the JSX.
+ *
+ * Filenames here must match those registered in lib/duckdb.ts initDuckDB.
+ * DuckDB resolves bare filenames against its virtual filesystem.
  */
-
-// --- Row types --------------------------------------------------------------
-// Mirror gold/*.parquet schemas. Keep the field names identical to the
-// parquet column names so the runtime cast in `runQuery` doesn't need
-// renames.
 
 export interface CharacterRow {
   character_id: string;
@@ -75,16 +73,10 @@ export interface GegeMomentRow {
   paired_event_distance_days: number | null;
 }
 
-// --- Queries ----------------------------------------------------------------
-// Constants rather than functions because every chart wants the same
-// shape; if a chart needs a custom slice it can compose with these.
-
-const GOLD = "/data";
-
 export const Q_TOP_CHARACTERS = `
   SELECT p.*, c.display_name
-  FROM read_parquet('${GOLD}/agg_polarisation.parquet') p
-  JOIN read_parquet('${GOLD}/dim_character.parquet') c
+  FROM read_parquet('agg_polarisation.parquet') p
+  JOIN read_parquet('dim_character.parquet') c
     USING (character_id)
   ORDER BY p.total_mentions DESC
   LIMIT 6
@@ -92,12 +84,12 @@ export const Q_TOP_CHARACTERS = `
 
 export const Q_HEADLINE_WEEKLY = `
   SELECT w.*, c.display_name
-  FROM read_parquet('${GOLD}/agg_char_week.parquet') w
-  JOIN read_parquet('${GOLD}/dim_character.parquet') c
+  FROM read_parquet('agg_char_week.parquet') w
+  JOIN read_parquet('dim_character.parquet') c
     USING (character_id)
   WHERE c.character_id IN (
     SELECT character_id
-    FROM read_parquet('${GOLD}/agg_polarisation.parquet')
+    FROM read_parquet('agg_polarisation.parquet')
     ORDER BY total_mentions DESC
     LIMIT 6
   )
@@ -106,24 +98,24 @@ export const Q_HEADLINE_WEEKLY = `
 
 export const Q_EVENTS_TIMELINE = `
   SELECT *
-  FROM read_parquet('${GOLD}/dim_event.parquet')
+  FROM read_parquet('dim_event.parquet')
   ORDER BY event_date
 `;
 
 export const Q_POLARISATION_RANKING = `
   SELECT p.*, c.display_name
-  FROM read_parquet('${GOLD}/agg_polarisation.parquet') p
-  JOIN read_parquet('${GOLD}/dim_character.parquet') c
+  FROM read_parquet('agg_polarisation.parquet') p
+  JOIN read_parquet('dim_character.parquet') c
     USING (character_id)
-  WHERE p.total_mentions >= 20
+  WHERE p.total_mentions >= 1
   ORDER BY p.polarisation_index DESC NULLS LAST
   LIMIT 10
 `;
 
 export const Q_GEGE_MOMENTS = `
   SELECT m.*, c.display_name
-  FROM read_parquet('${GOLD}/gege_moments.parquet') m
-  JOIN read_parquet('${GOLD}/dim_character.parquet') c
+  FROM read_parquet('gege_moments.parquet') m
+  JOIN read_parquet('dim_character.parquet') c
     USING (character_id)
   ORDER BY m.week_start DESC
   LIMIT 10
