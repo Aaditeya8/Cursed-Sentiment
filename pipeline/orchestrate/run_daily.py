@@ -53,6 +53,27 @@ app = typer.Typer(
 
 # --- daily incremental --------------------------------------------------------
 
+@app.command()
+def daily(
+    days: int = typer.Option(2, help="How many trailing days of data to pull"),
+) -> None:
+    """Daily incremental ingestion via Arctic Shift.
+
+    Pulls the trailing N days of posts and comments from each subreddit.
+    Two days by default — gives a 24-hour overlap that silver-layer dedup
+    will collapse, so a missed run doesn't create gaps.
+
+    Arctic Shift is the project's only live data source as of v1: Reddit
+    closed self-service OAuth in Nov 2025 (Responsible Builder Policy),
+    making PRAW unavailable without prior approval.
+    """
+    now = datetime.now(tz=UTC)
+    after = now - timedelta(days=days)
+    counts = arctic_shift.backfill(after=after, before=now)
+    typer.echo(
+        f"Daily ingest (Arctic Shift, last {days}d): "
+        f"posts={counts.posts_fetched} comments={counts.comments_fetched}"
+    )
 
 @app.command()
 def classify(
