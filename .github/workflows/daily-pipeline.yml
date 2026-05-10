@@ -2,12 +2,13 @@ name: daily-pipeline
 
 # Runs the daily Cursed Sentiment pipeline:
 #   1. Restore bronze/silver state from the previous run (committed gold + _state).
-#   2. PRAW incremental → bronze.
+#   2. Arctic Shift incremental → bronze.
 #   3. Bronze → silver clean.
 #   4. Silver → sentiment classification (with persistent JSONL cache).
 #   5. Silver → gold aggregations (dims, facts, weekly rollups, gege moments).
-#   6. Commit small gold parquets + state files back to the repo.
-#   7. On failure, open an issue with logs attached.
+#   6. Gold → per-character LLM reasoning summaries (cached for the dashboard).
+#   7. Commit small gold parquets + state files back to the repo.
+#   8. On failure, open an issue with logs attached.
 
 on:
   schedule:
@@ -50,6 +51,11 @@ jobs:
 
       - name: Build gold aggregations
         run: uv run cursed gold
+
+      - name: Generate per-character reasoning summaries
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: uv run cursed reason
 
       - name: Show pipeline status
         run: uv run cursed status

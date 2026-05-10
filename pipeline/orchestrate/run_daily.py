@@ -41,6 +41,7 @@ import typer
 from pipeline.extract import arctic_shift
 from pipeline.extract._common import UTC, DataPaths, SUBREDDITS, WatermarkStore
 from pipeline.load import build_gold
+from pipeline.load import build_summaries
 from pipeline.transform import clean as silver_clean
 from pipeline.transform import classify_sentiment, eval_runner
 
@@ -78,6 +79,7 @@ def daily(
 @app.command()
 def classify(
     posts_only: bool = typer.Option(False, "--posts-only", help="Skip comment classification"),
+    comments_only: bool = typer.Option(False, "--comments-only", help="Skip post classification (assume cached)"),
 ) -> None:
     """Run sentiment classification across silver posts and comments.
 
@@ -89,7 +91,7 @@ def classify(
     where post-level signal is plenty and comments would dominate API budget.
     """
     classifier = classify_sentiment.GroqClassifier.from_env()
-    posts = classify_sentiment.classify_posts(classifier)
+    posts = 0 if comments_only else classify_sentiment.classify_posts(classifier)
     comments = 0
     if not posts_only:
         comments = classify_sentiment.classify_comments(classifier)
@@ -208,6 +210,22 @@ def gold() -> None:
         f"  gege_moments:            {result.gege_moments}"
     )
 
+@app.command()
+def reason() -> None:
+    """Generate per-character LLM-synthesized fandom reasoning summaries.
+
+    Reads gold/agg_polarisation, picks the warmest, coldest, and most
+    polarising characters (top 3 headline stats on the dashboard), gathers
+    their top-upvoted positive and negative posts from silver, and asks
+    Llama 3.3 70B to summarize what each camp is saying.
+
+    Cached as gold/char_summary.parquet. The dashboard reads this cache;
+    no LLM call happens at view time. Cost: ~$0.01 per regeneration.
+
+    Run order: daily → silver → classify → gold → reason.
+    """
+    n = build_summaries.build_summaries()
+    typer.echo(f"Char summaries: {n}")
 
 # --- backfill -----------------------------------------------------------------
 

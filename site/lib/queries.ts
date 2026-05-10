@@ -121,6 +121,37 @@ export const Q_GEGE_MOMENTS = `
   LIMIT 10
 `;
 
+export interface CharSummaryRow {
+  character_id: string;
+  display_name: string;
+  category: string;
+  mentions: number;
+  mean_sentiment_score: number;
+  polarisation_index: number;
+  positive_summary: string;
+  negative_summary: string;
+  positive_examples: Array<{
+    text: string;
+    score: number;
+    subreddit: string;
+    permalink: string;
+  }>;
+  negative_examples: Array<{
+    text: string;
+    score: number;
+    subreddit: string;
+    permalink: string;
+  }>;
+  generated_at: Date;
+  model: string;
+}
+
+export const Q_CHAR_SUMMARIES = `
+  SELECT *
+  FROM read_parquet('char_summary.parquet')
+  ORDER BY category
+`;
+
 export const Q_SUBREDDIT_BREAKDOWN = `
   WITH all_facts AS (
     SELECT character_id, subreddit FROM read_parquet('fact_post_sentiment.parquet')

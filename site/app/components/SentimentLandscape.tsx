@@ -72,7 +72,7 @@ export function SentimentLandscape() {
                 v === 0 ? "neutral" : v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)
               }
               label={{
-                value: "← cold        warmth        warm →",
+                value: "← cold        neutral        warm →",
                 position: "insideBottom",
                 offset: -16,
                 fill: "var(--color-smoke)",

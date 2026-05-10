@@ -27,6 +27,7 @@ import { useEffect, useState } from "react";
 const GOLD_FILES = [
   "agg_char_week.parquet",
   "agg_polarisation.parquet",
+  "char_summary.parquet",
   "dim_character.parquet",
   "dim_event.parquet",
   "fact_comment_sentiment.parquet",
