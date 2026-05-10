@@ -107,7 +107,7 @@ export const Q_POLARISATION_RANKING = `
   FROM read_parquet('agg_polarisation.parquet') p
   JOIN read_parquet('dim_character.parquet') c
     USING (character_id)
-  WHERE p.total_mentions >= 1
+  WHERE p.total_mentions >= 50
   ORDER BY p.polarisation_index DESC NULLS LAST
   LIMIT 10
 `;

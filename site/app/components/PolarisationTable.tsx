@@ -21,8 +21,15 @@ export function PolarisationTable() {
       <div className="font-display italic text-section text-bone mb-1">
         The polarisation index
       </div>
-      <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-6">
+      <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-2">
         characters who split the fandom most · top 10
+      </div>
+      <div className="font-mono text-xs text-smoke max-w-2xl mb-6 leading-relaxed normal-case tracking-normal">
+        Polarisation 1.0 = fandom evenly split positive vs. negative, not hated.
+        Mean is the average sentiment score across all mentions, scaled
+        −1 (entirely negative) to +1 (entirely positive); it shows which
+        way the disagreement leans on average. Min 50 mentions; smaller
+        samples are too noisy to rank fairly.
       </div>
 
       <table className="w-full font-mono text-sm">
