@@ -29,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -58,8 +59,12 @@ from pipeline.transform.prompts import (
 
 log = structlog.get_logger(__name__)
 
-# Groq's free tier: 30 RPM ceiling for most models. Stay under it.
-DEFAULT_RATE_PER_SECOND = 4.0  # ~30 RPM with comfortable headroom
+## Groq free tier on llama-3.1-8b-instant caps at 6000 TPM. Each classification
+# is ~1200 tokens (the 8-example few-shot eats budget). 4 concurrent workers
+# × 1200 tokens = 4800 TPM, leaving headroom under the 6000 cap. The rate
+# limiter still throttles RPS as a secondary guard.
+DEFAULT_RATE_PER_SECOND = 16.0
+DEFAULT_CONCURRENCY = 16
 
 # Model and endpoint defaults. Override in the environment to swap providers.
 DEFAULT_MODEL = "llama-3.1-8b-instant"
@@ -223,9 +228,11 @@ class GroqClassifier:
         return result
 
     @retry(
-        retry=retry_if_exception_type((json.JSONDecodeError, ValidationError)),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(
+            (json.JSONDecodeError, ValidationError, Exception)
+        ),
+        wait=wait_exponential(multiplier=2, min=2, max=60),
+        stop=stop_after_attempt(6),
         reraise=True,
     )
     def _call_api(self, text: str) -> ClassificationResult:
@@ -282,8 +289,15 @@ def _post_text(row: dict[str, Any]) -> str:
 def classify_posts(
     classifier: GroqClassifier | None = None,
     paths: DataPaths | None = None,
+    concurrency: int = DEFAULT_CONCURRENCY,
 ) -> int:
-    """Classify every post in silver, write results parquet."""
+    """Classify every post in silver, write results parquet.
+
+    Concurrent: ``concurrency`` posts are in flight against Groq at any given
+    moment. The rate limiter is shared across threads, so the effective
+    throughput is bounded by ``DEFAULT_RATE_PER_SECOND`` regardless of
+    concurrency. Cache hits skip API calls entirely.
+    """
     paths = paths or DataPaths.from_env()
     classifier = classifier or GroqClassifier.from_env(paths)
 
@@ -296,25 +310,17 @@ def classify_posts(
         return 0
 
     rows = pq.read_table(posts_path).to_pylist()
-    out: list[dict[str, Any]] = []
     classified_at = datetime.now(tz=UTC)
+
+    # Pre-build (post_id, text) tuples so the worker function is closure-free.
+    work: list[tuple[str, str]] = []
     for r in rows:
         text = _post_text(r)
-        if not text:
-            continue
-        result = classifier.classify(text)
-        out.append(
-            {
-                "id": r["id"],
-                "sentiment": result.sentiment,
-                "confidence": result.confidence,
-                "intensity": result.intensity,
-                "target": result.target,
-                "classified_at": classified_at,
-                "prompt_version": PROMPT_VERSION,
-                "model": classifier.model,
-            }
-        )
+        if text:
+            work.append((r["id"], text))
+
+    log.info("classify_posts_start", total=len(work), concurrency=concurrency)
+    out = _classify_concurrent(classifier, work, classified_at, concurrency)
 
     dest = paths.silver / "post_classifications.parquet"
     write_parquet_atomic(out, dest, CLASSIFICATION_SCHEMA)
@@ -325,6 +331,7 @@ def classify_posts(
 def classify_comments(
     classifier: GroqClassifier | None = None,
     paths: DataPaths | None = None,
+    concurrency: int = DEFAULT_CONCURRENCY,
 ) -> int:
     """Classify every comment in silver, write results parquet."""
     paths = paths or DataPaths.from_env()
@@ -334,21 +341,53 @@ def classify_comments(
     if not comments_path.exists():
         log.warning("classify_no_silver_comments", path=str(comments_path))
         write_parquet_atomic(
-            [], paths.silver / "comment_classifications.parquet", CLASSIFICATION_SCHEMA
+            [], paths.silver / "comment_classifications.parquet",
+            CLASSIFICATION_SCHEMA,
         )
         return 0
 
     rows = pq.read_table(comments_path).to_pylist()
-    out: list[dict[str, Any]] = []
     classified_at = datetime.now(tz=UTC)
+
+    work: list[tuple[str, str]] = []
     for r in rows:
         body = (r.get("body_clean") or r.get("body") or "").strip()
-        if not body:
-            continue
-        result = classifier.classify(body)
-        out.append(
-            {
-                "id": r["id"],
+        if body:
+            work.append((r["id"], body))
+
+    log.info("classify_comments_start", total=len(work), concurrency=concurrency)
+    out = _classify_concurrent(classifier, work, classified_at, concurrency)
+
+    dest = paths.silver / "comment_classifications.parquet"
+    write_parquet_atomic(out, dest, CLASSIFICATION_SCHEMA)
+    log.info("classify_comments_done", classified=len(out), input_rows=len(rows))
+    return len(out)
+
+
+def _classify_concurrent(
+    classifier: GroqClassifier,
+    work: list[tuple[str, str]],
+    classified_at: datetime,
+    concurrency: int,
+) -> list[dict[str, Any]]:
+    """Run ``classifier.classify`` concurrently across (id, text) pairs.
+
+    The rate limiter inside the classifier is shared across threads, so the
+    effective throughput is bounded by ``DEFAULT_RATE_PER_SECOND`` regardless
+    of how high concurrency is set. Failures on one row don't abort the
+    whole run — they just produce a warning and that row is skipped.
+    """
+    out: list[dict[str, Any]] = []
+    completed = 0
+    total = len(work)
+    next_log = max(1, total // 20)  # log progress at 5% increments
+
+    def _classify_one(item: tuple[str, str]) -> dict[str, Any] | None:
+        row_id, text = item
+        try:
+            result = classifier.classify(text)
+            return {
+                "id": row_id,
                 "sentiment": result.sentiment,
                 "confidence": result.confidence,
                 "intensity": result.intensity,
@@ -357,12 +396,26 @@ def classify_comments(
                 "prompt_version": PROMPT_VERSION,
                 "model": classifier.model,
             }
-        )
+        except Exception as e:  # noqa: BLE001
+            log.warning("classify_row_failed", id=row_id, error=str(e))
+            return None
 
-    dest = paths.silver / "comment_classifications.parquet"
-    write_parquet_atomic(out, dest, CLASSIFICATION_SCHEMA)
-    log.info("classify_comments_done", classified=len(out), input_rows=len(rows))
-    return len(out)
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = [executor.submit(_classify_one, item) for item in work]
+        for fut in as_completed(futures):
+            row = fut.result()
+            if row is not None:
+                out.append(row)
+            completed += 1
+            if completed % next_log == 0:
+                log.info(
+                    "classify_progress",
+                    completed=completed,
+                    total=total,
+                    pct=f"{100 * completed / total:.0f}%",
+                )
+
+    return out
 
 
 def classify_all(paths: DataPaths | None = None) -> tuple[int, int]:
