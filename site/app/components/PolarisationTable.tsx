@@ -1,86 +1,133 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { useQuery } from "@/lib/duckdb";
 import { Q_POLARISATION_RANKING, type PolarisationRow } from "@/lib/queries";
 
+const MENTION_FLOOR = 50;
+const TOP_N = 10;
+
 /**
- * Top characters by polarisation index (variance, not just mean).
+ * Top characters by polarisation index. Rebuilt as a CSS grid of
+ * .polar-row entries instead of an HTML table, so the gradient bar
+ * can use the proper styling from globals.css with the centre-line
+ * indicator and red glow shadow.
  *
- * The methodology page explains polarisation in detail. The summary:
- * 1.0 means the fandom is split exactly 50/50 positive vs negative on
- * this character; 0.0 means everyone agrees one way or the other.
+ * Rows fade up in sequence via IntersectionObserver as they scroll
+ * into view — a 40ms stagger feels like a deck of cards being dealt.
  */
 export function PolarisationTable() {
   const { data, error, loading } = useQuery<PolarisationRow>(Q_POLARISATION_RANKING);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  if (loading) return <TableSkeleton />;
-  if (error || !data || data.length === 0) return <TableEmpty />;
+  // IntersectionObserver-driven row reveal. Each .polar-row starts at
+  // opacity 0 and translated 16px down; flips on intersection.
+  useEffect(() => {
+    if (!rootRef.current) return;
+    const rows = rootRef.current.querySelectorAll<HTMLDivElement>(".polar-row");
+    rows.forEach((row, i) => {
+      row.style.opacity = "0";
+      row.style.transform = "translateY(16px)";
+      row.style.transition = `opacity .7s cubic-bezier(.2,.8,.2,1) ${i * 0.04}s, transform .7s cubic-bezier(.2,.8,.2,1) ${i * 0.04}s`;
+    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const el = entry.target as HTMLDivElement;
+            el.style.opacity = "1";
+            el.style.transform = "translateY(0)";
+            observer.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.15 },
+    );
+    rows.forEach((row) => observer.observe(row));
+    return () => observer.disconnect();
+  }, [data]);
+
+  if (loading) return <Caption text="Loading polarisation data…" />;
+  if (error) return <Caption text="Failed to load polarisation data." tone="error" />;
+  if (!data || data.length === 0) return <Caption text="No polarisation data yet." />;
+
+  const filtered = data
+    .filter((r) => Number(r.total_mentions) >= MENTION_FLOOR)
+    .sort((a, b) => (b.polarisation_index ?? 0) - (a.polarisation_index ?? 0))
+    .slice(0, TOP_N);
+
+  if (filtered.length === 0) {
+    return <Caption text={`No characters reach the ${MENTION_FLOOR}-mention floor yet.`} />;
+  }
 
   return (
-    <div className="mt-16">
-      <div className="font-display italic text-section text-bone mb-1">
-        The polarisation index
+    <>
+      <div className="polar-wrap" ref={rootRef}>
+        {filtered.map((row, i) => {
+          const pol = Number(row.polarisation_index ?? 0);
+          const mean = Number(row.mean_sentiment_score ?? 0);
+          return (
+            <div key={row.character_id} className="polar-row">
+              <div className="polar-rank">{String(i + 1).padStart(2, "0")}</div>
+              <div className="polar-name">{row.display_name ?? row.character_id}</div>
+              <div className="polar-bar">
+                <div
+                  className="polar-fill"
+                  style={{ width: `${Math.max(0, Math.min(1, pol)) * 100}%` }}
+                />
+              </div>
+              <div className="polar-mentions">
+                {Number(row.total_mentions).toLocaleString()} mentions
+              </div>
+              <div className="polar-score">
+                {pol.toFixed(2)}
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: "0.6875rem",
+                    color: "#6a6055",
+                    marginTop: "0.125rem",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  mean {mean >= 0 ? "+" : ""}
+                  {mean.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-2">
-        characters who split the fandom most · top 10
+      <div
+        style={{
+          marginTop: "1rem",
+          fontFamily: "JetBrains Mono, monospace",
+          fontSize: "0.6875rem",
+          color: "#6a6055",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        characters with fewer than {MENTION_FLOOR} mentions excluded as
+        statistical noise
       </div>
-      <div className="font-mono text-xs text-smoke max-w-2xl mb-6 leading-relaxed normal-case tracking-normal">
-        Polarisation 1.0 = fandom evenly split positive vs. negative, not hated.
-        Mean is the average sentiment score across all mentions, scaled
-        −1 (entirely negative) to +1 (entirely positive); it shows which
-        way the disagreement leans on average. Min 50 mentions; smaller
-        samples are too noisy to rank fairly.
-      </div>
-
-      <table className="w-full font-mono text-sm">
-        <thead>
-          <tr className="border-b border-smoke/20 text-smoke text-xs uppercase tracking-wider">
-            <th className="text-left py-3 pr-4 font-normal">#</th>
-            <th className="text-left py-3 pr-4 font-normal">character</th>
-            <th className="text-right py-3 px-4 font-normal">mentions</th>
-            <th className="text-right py-3 px-4 font-normal">mean</th>
-            <th className="text-right py-3 pl-4 font-normal">polarisation</th>
-          </tr>
-        </thead>
-        <tbody className="text-bone">
-          {data
-            .filter((r) => r.polarisation_index !== null && !isNaN(r.polarisation_index))
-            .map((r, i) => (
-            <tr key={r.character_id} className="border-b border-smoke/10">
-              <td className="py-3 pr-4 text-smoke tabular">{i + 1}</td>
-              <td className="py-3 pr-4">{r.display_name}</td>
-              <td className="py-3 px-4 text-right tabular">
-                {Number(r.total_mentions).toLocaleString()}
-              </td>
-              <td className="py-3 px-4 text-right tabular">
-                {r.mean_sentiment_score >= 0 ? "+" : ""}
-                {r.mean_sentiment_score.toFixed(2)}
-              </td>
-              <td className="py-3 pl-4 text-right tabular text-gold">
-                {r.polarisation_index?.toFixed(2) ?? "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    </>
   );
 }
 
-function TableSkeleton() {
+function Caption({ text, tone = "muted" }: { text: string; tone?: "muted" | "error" }) {
   return (
-    <div className="mt-16">
-      <div className="h-5 w-48 bg-smoke/20 mb-2" />
-      <div className="h-3 w-64 bg-smoke/10 mb-6" />
-      <div className="h-64 bg-smoke/5" />
-    </div>
-  );
-}
-
-function TableEmpty() {
-  return (
-    <div className="mt-16 border border-smoke/30 p-8 font-mono text-sm text-smoke">
-      No polarisation data yet — run the gold build.
+    <div
+      style={{
+        padding: "2rem",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: "0.875rem",
+        color: tone === "error" ? "#ff2d4d" : "#6a6055",
+        textAlign: "center",
+      }}
+    >
+      {text}
     </div>
   );
 }
