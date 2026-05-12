@@ -18,9 +18,9 @@ import {
 } from "@/lib/queries";
 
 const SUBREDDIT_COLORS: Record<string, string> = {
-  jujutsukaisen: "#f4ede0", // bone — main hub, high contrast
-  jujutsushi:    "#5a9fe8", // gojo blue — analytical
-  jujutsufolk:   "#d4a857", // gold — memes
+  jujutsukaisen: "#e6203f", // cursed-red — main hub, flagship
+  jujutsushi:    "#5a9fe8", // gojo-blue — analytical / manga-only
+  jujutsufolk:   "#d4a857", // gold — memes / casual chaos
 };
 
 const SUBREDDIT_LABELS: Record<string, string> = {

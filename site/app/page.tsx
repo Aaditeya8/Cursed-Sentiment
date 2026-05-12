@@ -1,31 +1,30 @@
+import { Footer } from "./components/Footer";
 import { GegeMomentsList } from "./components/GegeMomentsList";
 import { HeadlineChart } from "./components/HeadlineChart";
 import { Hero } from "./components/Hero";
 import { HeroStats } from "./components/HeroStats";
-import { LastUpdated } from "./components/LastUpdated";
 import { Nav } from "./components/Nav";
+import { PipelineScroller } from "./components/PipelineScroller";
 import { PolarisationTable } from "./components/PolarisationTable";
 import { SentimentLandscape } from "./components/SentimentLandscape";
 import { SubredditBreakdown } from "./components/SubredditBreakdown";
+import { WhyThisExists } from "./components/WhyThisExists";
 
 /**
- * Homepage — new "Cursed Field Manual" structure.
+ * Homepage — Cursed Field Manual, full v4 mockup parity.
  *
  * Order:
  *   nav
- *   hero (with kanji backdrop + strikethrough + meta column)
- *   stats strip (4 cards: mentions / polarising / warmest / coldest)
+ *   hero
+ *   stats strip
  *   01 / 05  How they aged                (HeadlineChart)
  *   02 / 05  Where the conversation lives (SubredditBreakdown)
  *   03 / 05  The landscape                (SentimentLandscape)
  *   04 / 05  Who splits the room          (PolarisationTable)
  *   05 / 05  Gege moments                 (GegeMomentsList)
- *   footer (simple — commit 4 brings the full multi-column kanji-signed one)
- *
- * Note: existing data-viz components still render their own internal
- * headers in this commit. The visual result has the new outer section-head
- * AND the old inner component title side by side. Commit 3 strips the
- * inner titles when each component gets restyled.
+ *   pipeline scroller                     ← new this commit
+ *   why this exists
+ *   footer
  */
 export default function HomePage() {
   return (
@@ -107,26 +106,11 @@ export default function HomePage() {
         <GegeMomentsList />
       </section>
 
-      <footer className="mt-24 pt-12 border-t border-smoke/20 font-mono text-xs text-smoke flex flex-wrap justify-between gap-4">
-        <div>
-          Built by{" "}
-          <a
-            href="https://aaditeyas.vercel.app"
-            className="underline decoration-smoke/40 underline-offset-4 hover:text-bone"
-          >
-            Aaditeya Sharma
-          </a>
-          . Source on{" "}
-          <a
-            href="https://github.com/Aaditeya8/Cursed-Sentiment"
-            className="underline decoration-smoke/40 underline-offset-4 hover:text-bone"
-          >
-            GitHub
-          </a>
-          .
-        </div>
-        <LastUpdated />
-      </footer>
+      <PipelineScroller />
+
+      <WhyThisExists />
+
+      <Footer />
     </main>
   );
 }

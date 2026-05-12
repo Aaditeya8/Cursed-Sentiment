@@ -2,30 +2,45 @@
 
 import { useEffect, useState } from "react";
 
-/**
- * Pulls the most recent classification timestamp from eval_results.json
- * and displays it in the footer. Makes the "daily-refreshed" claim
- * visible — a hiring manager sees "last updated 14h ago" and immediately
- * understands the cron is real.
- */
 export function LastUpdated() {
   const [stamp, setStamp] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/data/eval_results.json")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
-        if (!data?.ran_at) return;
-        const ago = humanAgo(new Date(data.ran_at));
-        setStamp(ago);
-      })
-      .catch(() => {
-        /* silent — footer just doesn't show a stamp */
-      });
+    async function load() {
+      let timestamp: string | null = null;
+
+      // primary: pipeline-status file written every cron run
+      try {
+        const r = await fetch("/data/_pipeline_status.json", { cache: "no-store" });
+        if (r.ok) {
+          const data = await r.json();
+          if (data?.last_ran_at) timestamp = data.last_ran_at;
+        }
+      } catch {
+        /* fall through */
+      }
+
+      // fallback: eval results — updated only when eval is re-run
+      if (!timestamp) {
+        try {
+          const r = await fetch("/data/eval_results.json", { cache: "no-store" });
+          if (r.ok) {
+            const data = await r.json();
+            if (data?.ran_at) timestamp = data.ran_at;
+          }
+        } catch {
+          /* silent — footer just doesn't show a stamp */
+        }
+      }
+
+      if (timestamp) {
+        setStamp(humanAgo(new Date(timestamp)));
+      }
+    }
+    load();
   }, []);
 
   if (!stamp) return null;
-
   return <span className="tabular">last refreshed {stamp}</span>;
 }
 
