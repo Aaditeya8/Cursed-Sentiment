@@ -2,21 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-interface EvalAxis {
-  accuracy: number;
-  per_class: Record<
-    string,
-    { precision: number; recall: number; f1: number; support: number }
-  >;
+import { Footer } from "../components/Footer";
+import { Nav } from "../components/Nav";
+
+interface PerClass {
+  precision: number;
+  recall: number;
+  f1: number;
+  support: number;
 }
 
-interface EvalMiss {
-  id: string;
-  category: string;
-  text: string;
-  wrong_axes: string[];
-  expected: { sentiment: string; intensity: string; target: string };
-  predicted: { sentiment: string; intensity: string; target: string };
+interface AxisResult {
+  accuracy: number;
+  per_class: Record<string, PerClass>;
 }
 
 interface EvalResults {
@@ -24,399 +22,518 @@ interface EvalResults {
   prompt_version: string;
   model: string;
   ran_at: string;
-  sentiment: EvalAxis;
-  intensity: EvalAxis;
-  target: EvalAxis;
-  per_category: Record<string, { total: number; all_correct: number }>;
-  misses: EvalMiss[];
+  sentiment: AxisResult;
+  intensity: AxisResult;
+  target: AxisResult;
 }
 
 /**
- * Methodology page: how the pipeline works, why it works that way,
- * and where it's known to fail. Self-aware enough that a hiring
- * manager reads it and trusts the rest of the dashboard.
+ * Methodology page — 5 numbered chapters explaining how the dashboard's
+ * data is produced. Same design language as the homepage (numbered
+ * section heads, italic Fraunces titles, mono ledes), reusing every
+ * CSS class from globals.css.
+ *
+ *   01  The Ingestion       — Arctic Shift, 2-day rolling window
+ *   02  The Naming          — alias dictionary, 3 match modes
+ *   03  The Classification  — Llama 3.1 prompt + caching strategy
+ *   04  The Test            — accuracy badges + per-class table
+ *   05  The Misses          — 4 misclassifications + known limitations
+ *
+ * Eval numbers load from /data/eval_results.json. Everything else is
+ * editorial prose with hand-curated examples.
  */
 export default function MethodologyPage() {
   const [evalData, setEvalData] = useState<EvalResults | null>(null);
-  const [evalError, setEvalError] = useState<boolean>(false);
 
   useEffect(() => {
-    fetch("/data/eval_results.json")
+    fetch("/data/eval_results.json", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setEvalData)
-      .catch(() => setEvalError(true));
+      .then((data: EvalResults) => setEvalData(data))
+      .catch(() => {
+        /* silent — eval section just renders without numbers */
+      });
   }, []);
 
   return (
-    <main>
-      <header className="border-b border-smoke/20 pb-12">
-        <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-4">
-          Cursed Sentiment / methodology
-        </div>
-        <h1 className="font-display italic text-headline text-bone max-w-2xl">
-          How this dashboard was built — and why you should be skeptical of it.
-        </h1>
-        <p className="mt-6 text-smoke max-w-2xl leading-relaxed">
-          The dashboard&apos;s credibility depends on its methodology being
-          legible. This page is the long form. Read it once and decide for
-          yourself how much to trust the numbers.
-        </p>
-        {evalData && (
-          <div className="mt-6 font-mono text-xs text-smoke tabular">
-            Last classified:{" "}
-            <span className="text-bone">
-              {new Date(evalData.ran_at).toUTCString()}
-            </span>
+    <div className="methodology-page">
+      <main>
+        <Nav />
+
+        {/* hero */}
+        <section className="method-hero">
+          <div className="method-hero-kanji" aria-hidden="true">
+            法
           </div>
-        )}
-      </header>
+          <div className="method-hero-eyebrow">
+            Methodology · how the data is produced
+          </div>
+          <h1>
+            Every chart has a <em>paper trail</em>.<br />
+            This is it.
+          </h1>
+          <p className="method-hero-sub">
+            Inside you&apos;ll find the ingestion pipeline, the alias
+            dictionary, the actual <em>Llama prompt</em>, the eval results,
+            and the cases where the classifier <em>gets it dramatically
+            wrong</em>. Skepticism welcome.
+          </p>
+          <aside className="method-hero-meta">
+            <strong>Vol. I</strong>
+            The Ingestion
+            <br />
+            <span className="red">2026 · 05</span>
+            <br />
+            <br />
+            <strong>Eval set</strong>
+            {evalData ? `${evalData.eval_set_size} hand-labelled` : "55 hand-labelled"}
+            <br />
+            <br />
+            <strong>Model</strong>
+            llama-3.1-8b-instant
+          </aside>
+        </section>
 
-      <Section title="Data collection">
-        <p>
-          Reddit posts and comments from r/JuJutsuKaisen, r/Jujutsushi, and
-          r/Jujutsufolk are pulled from{" "}
-          <a
-            href="https://arctic-shift.photon-reddit.com/"
-            className="text-bone underline decoration-smoke/40 underline-offset-4 hover:decoration-bone"
-          >
-            Arctic Shift
-          </a>
-          , a community-run successor to the now-defunct Pushshift. The
-          original v1 plan paired Arctic Shift for historical backfill with
-          PRAW (the official Python Reddit wrapper) for the daily incremental
-          scrape, but in November 2025 Reddit shipped the Responsible Builder
-          Policy and closed self-service OAuth approval — new PRAW credentials
-          now require manual Reddit review with no committed turnaround. The
-          daily cron pulls a 2-day rolling window from Arctic Shift instead;
-          silver-layer dedup collapses the 24-hour overlap so a missed run
-          doesn&apos;t create gaps. Tradeoff: 12-24 hours of additional
-          latency on the freshest data, invisible at the weekly-aggregation
-          grain the dashboard ships.
-        </p>
-        <p>
-          Author usernames are SHA-256-hashed with a per-deployment salt
-          before they leave the silver layer. The aggregate analytics never
-          reference individual users.
-        </p>
-      </Section>
-
-      <Section title="Character resolution">
-        <p>
-          A hand-curated alias dictionary maps ~30 canonical character ids to
-          their many surface forms — &ldquo;Gojo Satoru,&rdquo;
-          &ldquo;Satoru,&rdquo; &ldquo;Gojo-sensei,&rdquo; &ldquo;the honored
-          one&rdquo; — with three match modes:
-        </p>
-        <ul className="list-disc pl-6 space-y-2 text-smoke">
-          <li>
-            <code className="text-bone">substring</code> for unambiguous full
-            names like &ldquo;Higuruma.&rdquo;
-          </li>
-          <li>
-            <code className="text-bone">word_boundary</code> for short tokens
-            that need to not match inside other words (&ldquo;Yuji&rdquo;
-            should match &ldquo;Yuji&rdquo; but not &ldquo;Yujiro&rdquo;).
-          </li>
-          <li>
-            <code className="text-bone">requires_context</code> for ambiguous
-            aliases that only resolve when another character indicator is in
-            the same post. &ldquo;The strongest&rdquo; doesn&apos;t fire on
-            gym posts.
-          </li>
-        </ul>
-        <p>
-          Aliases also carry a confidence weight in [0, 1] that propagates
-          all the way to the gold-layer fact tables, so downstream
-          aggregations can discount low-confidence mentions. Bare
-          &ldquo;Satoru&rdquo; weighs 0.7; full &ldquo;Gojo Satoru&rdquo;
-          weighs 1.0.
-        </p>
-      </Section>
-
-      <Section title="Sentiment classification">
-        <p>
-          Each post is classified along three axes by Llama 3.1 8B-instant on
-          Groq&apos;s free tier. The system prompt names eight specific
-          JJK-fandom idioms by hand — the &ldquo;this killed me&rdquo;
-          construction, the affectionate cursing of Gege Akutami, the
-          sarcastic 🙏 — paired with eight few-shot examples that each teach
-          one. A regression test asserts that every named idiom is still
-          covered after prompt edits.
-        </p>
-        <p>
-          Results are cached by{" "}
-          <code className="text-bone">{`{prompt_version}:{sha256(text)}`}</code>{" "}
-          in a JSONL file committed to git, so collaborators don&apos;t pay
-          the API bill twice and bumping the prompt version cleanly
-          invalidates everything.
-        </p>
-
-        <div className="mt-8">
-          <h3 className="font-mono text-xs uppercase tracking-wider text-smoke mb-4">
-            Synthetic eval results
-          </h3>
-          {evalError ? (
-            <div className="font-mono text-sm text-smoke">
-              No eval results have been published yet. Run{" "}
-              <code className="text-bone">uv run cursed eval</code>.
+        {/* Chapter 01 — Ingestion */}
+        <section id="ingestion" className="section">
+          <div className="section-head">
+            <div className="section-head-title">
+              <span className="section-num">01 / 05</span>
+              <h2>The Ingestion</h2>
             </div>
-          ) : evalData ? (
-            <>
-              <AccuracyBadges data={evalData} />
-              <EvalTables data={evalData} />
-            </>
-          ) : (
-            <div className="h-32 bg-smoke/5 animate-pulse" />
-          )}
-        </div>
-      </Section>
-
-      <Section title="The polarisation index">
-        <p>
-          Polarisation answers a question that mean sentiment can&apos;t:
-          how much does the fandom <em>disagree</em> about this character?
-          Two characters might both have a mean sentiment of 0.0 — one
-          because everyone is neutral, one because half love them and half
-          hate them. The polarisation index distinguishes them.
-        </p>
-        <p>
-          The formula is{" "}
-          <code className="text-bone">1 − 2·|p − 0.5|</code>, where p is the
-          share of opinionated mentions that are positive. 1.0 means a
-          perfect 50/50 split (maximum polarisation); 0.0 means one side
-          dominates entirely. Mixed and neutral mentions don&apos;t enter
-          this calculation.
-        </p>
-        <p className="text-smoke">
-          A second metric — Shannon entropy across all four classes — is
-          also computed. Both ship in the gold layer because they answer
-          slightly different questions.
-        </p>
-      </Section>
-
-      <Section title="The Gege moment detector">
-        <p>
-          For each character with at least 10 mentions in a given week, we
-          compute a z-score of that week&apos;s mean sentiment against the
-          trailing 12-week baseline. Weeks with |z| &gt; 2 are flagged as
-          &ldquo;Gege moments.&rdquo; Each flagged week is paired with the
-          closest manga chapter event within ±7 days, if any.
-        </p>
-        <p>
-          The 12-week window is short enough to track shifting baselines
-          (the fandom&apos;s mood does drift over years) but long enough to
-          be statistically meaningful. The 10-mention floor suppresses
-          single-day noise on minor characters.
-        </p>
-      </Section>
-
-      <Section title="Where the classifier gets it wrong">
-        <p className="text-smoke">
-          The cases below come straight from the eval run — they are
-          classifications the model got wrong on at least one axis. Showing
-          them here is deliberate: most portfolios hide their failures, this
-          one features them. If you spot a pattern, that&apos;s a v2 prompt
-          revision waiting to happen.
-        </p>
-        {evalData && evalData.misses.length > 0 && (
-          <MissesTable misses={evalData.misses.slice(0, 8)} />
-        )}
-      </Section>
-
-      <Section title="Why you should be skeptical">
-        <p>
-          A few honest limitations the methodology can&apos;t paper over:
-        </p>
-        <ul className="list-disc pl-6 space-y-3 text-smoke">
-          <li>
-            <span className="text-bone">
-              The eval set was written by the same person who wrote the
-              prompt.
-            </span>{" "}
-            Self-validation hazard. The synthetic eval guards against
-            regressions on named idioms but cannot detect blind spots in
-            the prompt designer&apos;s own framing of the problem. A
-            hand-labeled real eval is the planned next step.
-          </li>
-          <li>
-            <span className="text-bone">
-              Reddit deletes substantial bodies over time.
-            </span>{" "}
-            Around chapter 236&apos;s release week, ~60% of post bodies
-            were marked <code>[removed]</code> by the time we scraped.
-            We classify the title-only when the body is gone, which is a
-            real signal but a noisier one.
-          </li>
-          <li>
-            <span className="text-bone">
-              Multi-character posts get the same sentiment fanned out to
-              each character.
-            </span>{" "}
-            A post saying &ldquo;Gojo great, Sukuna terrible&rdquo; is
-            classified once with whatever the model decides about the post
-            as a whole, then attributed to both characters at that
-            sentiment. This introduces noise on multi-character posts; the
-            tradeoff is documented and accepted.
-          </li>
-          <li>
-            <span className="text-bone">
-              Polarisation is unweighted by classifier confidence.
-            </span>{" "}
-            A 0.6-confidence positive carries the same weight as a
-            0.95-confidence positive in the index calculation. Folding
-            confidence in is on the v2 list.
-          </li>
-          <li>
-            <span className="text-bone">
-              The daily window is 2 days wide, not 1.
-            </span>{" "}
-            Belt-and-suspenders against a missed cron — silver-layer dedup
-            collapses the 24-hour overlap. Visible in the cron logs but
-            invisible in the dashboard.
-          </li>
-        </ul>
-      </Section>
-
-      <footer className="mt-24 pt-12 border-t border-smoke/20 font-mono text-xs text-smoke">
-        <a
-          href="/"
-          className="underline decoration-smoke/40 underline-offset-4 hover:text-bone"
-        >
-          ← back to the dashboard
-        </a>
-      </footer>
-    </main>
-  );
-}
-
-// --- helpers --------------------------------------------------------------
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mt-16 max-w-2xl">
-      <h2 className="font-display italic text-section text-bone mb-6">
-        {title}
-      </h2>
-      <div className="space-y-4 text-bone leading-relaxed">{children}</div>
-    </section>
-  );
-}
-
-function AccuracyBadges({ data }: { data: EvalResults }) {
-  const axes = [
-    { name: "sentiment", value: data.sentiment.accuracy },
-    { name: "intensity", value: data.intensity.accuracy },
-    { name: "target", value: data.target.accuracy },
-  ];
-  return (
-    <div className="grid grid-cols-3 gap-4 mb-8">
-      {axes.map((a) => (
-        <div
-          key={a.name}
-          className="border border-smoke/20 px-4 py-3"
-        >
-          <div className="font-mono text-xs uppercase tracking-wider text-smoke">
-            {a.name}
+            <p className="lede">
+              In the autumn of <em>2025</em>, Reddit closed its self-service
+              OAuth approvals. Existing wrappers like PRAW lost the ability
+              to onboard new applications — a door quietly closed on
+              unbusinessed, independent projects.
+            </p>
           </div>
-          <div className="font-display italic text-2xl text-bone tabular mt-1">
-            {(a.value * 100).toFixed(1)}%
+          <div className="method-body">
+            <div>
+              <p>
+                The alternative was <strong>Arctic Shift</strong>, a
+                community-run successor to the long-vanished Pushshift. It
+                hosts mirrors of <em>r/JuJutsuKaisen</em>,{" "}
+                <em>r/Jujutsushi</em>, and <em>r/Jujutsufolk</em> back to 2020,
+                accessible without authentication.
+              </p>
+              <p>
+                The daily cron now pulls a{" "}
+                <strong>2-day rolling window</strong> from Arctic Shift;
+                silver-layer deduplication collapses the 24-hour overlap. A
+                missed run never creates gaps.
+              </p>
+            </div>
+            <div>
+              <div className="method-callout">
+                <strong>Trade-off, noted.</strong>
+                12–24 hours of latency on the freshest data. Invisible at
+                the weekly-aggregation grain the dashboard ships.
+              </div>
+              <p>
+                Author usernames are <em>SHA-256-hashed</em> with a
+                per-deployment salt before they leave the silver layer. No
+                analytic ever references an individual user. The dataset is
+                the fandom, not the fans.
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        </section>
+
+        {/* Chapter 02 — Naming */}
+        <section id="naming" className="section">
+          <div className="section-head">
+            <div className="section-head-title">
+              <span className="section-num">02 / 05</span>
+              <h2>The Naming</h2>
+            </div>
+            <p className="lede">
+              Gojo Satoru is also Satoru, Gojo-sensei, the honored one, the
+              strongest, six-eyes, and (in 4chan threads) <em>blindfold
+              guy</em>. A character is a cloud of names; the question is
+              which cloud each mention belongs to.
+            </p>
+          </div>
+          <div className="method-body">
+            <div>
+              <p>
+                A hand-curated <code>characters.yaml</code> maps roughly{" "}
+                <strong>30 canonical IDs</strong> to their many surface
+                forms, with three match modes — chosen per alias based on
+                how forgiving the matcher can afford to be:
+              </p>
+              <div className="method-callout">
+                <strong>substring</strong>
+                Unambiguous full names like <em>&ldquo;Higuruma&rdquo;</em> or{" "}
+                <em>&ldquo;Yuta Okkotsu&rdquo;</em>.
+              </div>
+              <div className="method-callout">
+                <strong>word_boundary</strong>
+                Short tokens like <em>&ldquo;Yuji&rdquo;</em> — must match{" "}
+                <em>Yuji</em> as a whole word, not <em>Yujiro</em>.
+              </div>
+            </div>
+            <div>
+              <div className="method-callout">
+                <strong>requires_context</strong>
+                Ambiguous aliases like <em>&ldquo;the strongest&rdquo;</em>{" "}
+                only resolve when another character indicator is present in
+                the same post. Gym posts and unrelated power-scaling
+                discussions unaffected.
+              </div>
+              <p>
+                Each alias carries a <em>confidence weight</em> in{" "}
+                <code>[0, 1]</code> that propagates all the way to
+                gold-layer aggregations. Bare <em>&ldquo;Satoru&rdquo;</em>{" "}
+                weighs 0.7; full <em>&ldquo;Gojo Satoru&rdquo;</em> weighs
+                1.0. The polarisation index uses these weights directly.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Chapter 03 — Classification */}
+        <section id="classification" className="section">
+          <div className="section-head">
+            <div className="section-head-title">
+              <span className="section-num">03 / 05</span>
+              <h2>The Classification</h2>
+            </div>
+            <p className="lede">
+              A small open-weight model, given the right prompt, can do the
+              work of an annotator team. The trick is in the prompt — and
+              specifically in naming, by hand, the idioms the model has
+              never seen.
+            </p>
+          </div>
+          <div className="method-body">
+            <div>
+              <p>
+                Each Reddit post is classified by{" "}
+                <strong>Llama 3.1 8B-Instant</strong> on Groq&apos;s free
+                tier, on <em>three axes</em> simultaneously: sentiment
+                polarity, engagement intensity, and whether the post is{" "}
+                <em>about-the-character</em> or{" "}
+                <em>about-an-arc-moment</em>.
+              </p>
+              <p>
+                The system prompt names <em>eight specific JJK-fandom
+                idioms</em> by hand — the &ldquo;this killed me&rdquo;
+                construction, the affectionate cursing of Gege Akutami, the
+                sarcastic 🙏 — each paired with a few-shot example. A
+                regression test asserts every named idiom stays covered
+                after prompt edits.
+              </p>
+            </div>
+            <div>
+              <p>
+                Results cache by{" "}
+                <code>{`{prompt_version}:sha256(text)`}</code> in a JSONL
+                committed to git, so collaborators don&apos;t pay the API
+                bill twice and bumping the prompt version cleanly
+                invalidates everything downstream.
+              </p>
+              <p>
+                Total cost across the full historical backfill —{" "}
+                <em>over 13,000 posts and 6,000 comments</em> — was roughly{" "}
+                <strong>$1.40</strong>. The daily cron runs free under
+                Groq&apos;s rate limits.
+              </p>
+            </div>
+
+            <pre className="prompt-block full" data-label="system prompt · v1">
+              <span className="com">{`// excerpt — full prompt at pipeline/transform/prompts.py`}</span>
+              {`\n`}
+              <span className="kw">You</span> are a careful fandom analyst for r/JuJutsuKaisen.
+              {`\n\n`}
+              <span className="kw">For</span> each post, return JSON with these three axes:
+              {`\n`}
+              {`  `}<span className="key">sentiment</span>:  <span className="str">&quot;positive&quot; | &quot;negative&quot; | &quot;mixed&quot; | &quot;neutral&quot;</span>
+              {`\n`}
+              {`  `}<span className="key">intensity</span>:  <span className="str">&quot;low&quot; | &quot;medium&quot; | &quot;high&quot;</span>
+              {`\n`}
+              {`  `}<span className="key">target</span>:     <span className="str">&quot;character&quot; | &quot;arc_moment&quot; | &quot;meta&quot;</span>
+              {`\n\n`}
+              <span className="kw">Critical:</span> the JJK community uses certain idioms that look
+              {`\n`}
+              negative on the surface but signal <span className="str">positive engagement</span>:
+              {`\n`}
+              {`  · `}<span className="str">&quot;this killed me&quot;</span>     → positive, high intensity
+              {`\n`}
+              {`  · `}<span className="str">&quot;Gege you genius bastard&quot;</span> → positive, high intensity
+              {`\n`}
+              {`  · `}<span className="str">&quot;💀💀💀&quot;</span>               → positive, medium intensity
+              {`\n`}
+              {`  · `}sarcastic <span className="str">🙏</span>             → context-dependent; lean negative
+              {`\n\n`}
+              <span className="kw">Few-shot examples:</span> ...
+            </pre>
+          </div>
+        </section>
+
+        {/* Chapter 04 — The Test */}
+        <section id="test" className="section">
+          <div className="section-head">
+            <div className="section-head-title">
+              <span className="section-num">04 / 05</span>
+              <h2>The Test</h2>
+            </div>
+            <p className="lede">
+              A self-written eval set of {evalData?.eval_set_size ?? 55}{" "}
+              hand-labelled posts. Self-validation hazard <em>fully
+              acknowledged</em>. A hand-labelled third-party eval is the
+              planned next step.
+            </p>
+          </div>
+          <div className="method-body">
+            <p className="full">
+              The eval set was labelled before any prompt iteration, then
+              held out. The model classifies each post against the gold
+              labels; mismatches are recorded with the exact axis that
+              failed. This catches regressions when the prompt changes —
+              but <em>cannot detect blind spots in the prompt
+              designer&apos;s own framing</em>.
+            </p>
+
+            <div className="eval-grid full">
+              <div className="eval-card">
+                <div className="label">Sentiment</div>
+                <div className="value">
+                  <em>{formatAccuracy(evalData?.sentiment.accuracy)}</em>%
+                </div>
+                <div className="sub">
+                  {supportLine(evalData?.sentiment, evalData?.eval_set_size)}
+                </div>
+              </div>
+              <div className="eval-card">
+                <div className="label">Intensity</div>
+                <div className="value">
+                  <em>{formatAccuracy(evalData?.intensity.accuracy)}</em>%
+                </div>
+                <div className="sub">
+                  {supportLine(evalData?.intensity, evalData?.eval_set_size)}
+                </div>
+              </div>
+              <div className="eval-card">
+                <div className="label">Target</div>
+                <div className="value">
+                  <em>{formatAccuracy(evalData?.target.accuracy)}</em>%
+                </div>
+                <div className="sub">
+                  {supportLine(evalData?.target, evalData?.eval_set_size)}
+                </div>
+              </div>
+            </div>
+
+            <table className="eval-table full">
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th className="num">Precision</th>
+                  <th className="num">Recall</th>
+                  <th className="num">F1</th>
+                  <th className="num">Support</th>
+                </tr>
+              </thead>
+              <tbody>
+                {renderAxisRows("sentiment", evalData?.sentiment)}
+                {renderAxisRows("intensity", evalData?.intensity)}
+                {renderAxisRows("target", evalData?.target)}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Chapter 05 — The Misses */}
+        <section id="misses" className="section">
+          <div className="section-head">
+            <div className="section-head-title">
+              <span className="section-num">05 / 05</span>
+              <h2>The Misses</h2>
+            </div>
+            <p className="lede">
+              Most portfolios hide their failures. This one features them.
+              If a pattern emerges, that&apos;s a v2 prompt revision
+              waiting to happen.
+            </p>
+          </div>
+          <div className="method-body">
+            <div className="misses-strip full">
+              <div className="miss-card">
+                <div className="miss-text">
+                  Gege you absolute monster, I haven&apos;t slept in three
+                  days.
+                </div>
+                <div className="miss-meta">
+                  <span className="pred">predicted</span> negative · high
+                  <br />
+                  <span className="expected">expected</span> positive · high
+                  <br />
+                  <em>category</em> affectionate-curse idiom
+                </div>
+              </div>
+              <div className="miss-card">
+                <div className="miss-text">Sukuna won. Cope.</div>
+                <div className="miss-meta">
+                  <span className="pred">predicted</span> positive · medium
+                  <br />
+                  <span className="expected">expected</span> negative · medium
+                  <br />
+                  <em>category</em> in-character power-scaling
+                </div>
+              </div>
+              <div className="miss-card">
+                <div className="miss-text">
+                  Did Gege just kill the strongest with a household
+                  appliance? 🙏
+                </div>
+                <div className="miss-meta">
+                  <span className="pred">predicted</span> positive · high
+                  <br />
+                  <span className="expected">expected</span> negative · high
+                  <br />
+                  <em>category</em> sarcastic-🙏 reverse polarity
+                </div>
+              </div>
+              <div className="miss-card">
+                <div className="miss-text">
+                  Yuta&apos;s character development this arc is just
+                  *chef&apos;s kiss*.
+                </div>
+                <div className="miss-meta">
+                  <span className="pred">predicted</span> positive · medium
+                  <br />
+                  <span className="expected">expected</span> positive · high
+                  <br />
+                  <em>category</em> intensity underestimated
+                </div>
+              </div>
+            </div>
+
+            <h3
+              style={{
+                gridColumn: "1 / -1",
+                fontFamily: "var(--ff-display)",
+                fontStyle: "italic",
+                fontWeight: 400,
+                fontSize: "1.6rem",
+                color: "var(--bone)",
+                margin: "2.5rem 0 0.75rem",
+                letterSpacing: "-0.015em",
+              }}
+            >
+              Known limitations
+            </h3>
+            <div className="limits full">
+              <div className="limit">
+                <h4>
+                  The eval set was written by the same person who wrote
+                  the prompt.
+                </h4>
+                <p>
+                  Self-validation hazard. The synthetic eval guards against
+                  regressions on named idioms but cannot detect blind spots
+                  in the prompt designer&apos;s own framing. A hand-labelled
+                  third-party eval is the planned next step.
+                </p>
+              </div>
+              <div className="limit">
+                <h4>Reddit deletes substantial bodies over time.</h4>
+                <p>
+                  Around chapter 236&apos;s release week, roughly{" "}
+                  <strong>60% of post bodies</strong> were marked{" "}
+                  <code>[removed]</code> by the time we scraped. Title-only
+                  classifications are real signal but noisier.
+                </p>
+              </div>
+              <div className="limit">
+                <h4>Multi-character posts share one sentiment.</h4>
+                <p>
+                  A post saying &ldquo;Gojo great, Sukuna terrible&rdquo;
+                  is classified once on the post as a whole, then
+                  attributed to both characters at that sentiment. Noise on
+                  multi-character posts is documented and accepted.
+                </p>
+              </div>
+              <div className="limit">
+                <h4>
+                  Polarisation is unweighted by classifier confidence.
+                </h4>
+                <p>
+                  A 0.6-confidence positive carries the same weight in the
+                  index as a 0.95-confidence positive.
+                  Confidence-weighting is on the v2 list — needs care to
+                  avoid distorting the headline numbers.
+                </p>
+              </div>
+              <div className="limit">
+                <h4>The daily window is 2 days, not 1.</h4>
+                <p>
+                  Belt-and-suspenders against a missed cron — silver-layer
+                  dedup collapses the 24-hour overlap. Visible in the cron
+                  logs but invisible in the dashboard.
+                </p>
+              </div>
+              <div className="limit">
+                <h4>This is fan sentiment, not viewer sentiment.</h4>
+                <p>
+                  Reddit fans are a self-selected subset of the JJK
+                  audience. Casual viewers don&apos;t post weekly chapter
+                  reactions. The numbers are{" "}
+                  <em>directionally interesting</em>, not population
+                  estimates.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <Footer />
+      </main>
     </div>
   );
 }
 
-function EvalTables({ data }: { data: EvalResults }) {
-  return (
-    <div className="space-y-8">
-      <div className="font-mono text-xs text-smoke">
-        prompt {data.prompt_version} · model {data.model} ·{" "}
-        {data.eval_set_size} cases · ran{" "}
-        {new Date(data.ran_at).toISOString().slice(0, 10)}
-      </div>
-      <AxisTable name="sentiment" axis={data.sentiment} />
-      <AxisTable name="intensity" axis={data.intensity} />
-      <AxisTable name="target" axis={data.target} />
-    </div>
-  );
+// ─── helpers ───────────────────────────────────────────────────────
+
+function formatAccuracy(acc: number | undefined): string {
+  if (acc === undefined) return "—";
+  return (acc * 100).toFixed(1);
 }
 
-function AxisTable({ name, axis }: { name: string; axis: EvalAxis }) {
+function supportLine(
+  axis: AxisResult | undefined,
+  total: number | undefined,
+): string {
+  if (!axis || !total) return "—";
+  const correct = Math.round(axis.accuracy * total);
+  return `${correct} / ${total} correct`;
+}
+
+function renderAxisRows(name: string, axis: AxisResult | undefined) {
   return (
-    <div>
-      <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-2">
-        {name} · accuracy {(axis.accuracy * 100).toFixed(1)}%
-      </div>
-      <table className="w-full font-mono text-sm">
-        <thead>
-          <tr className="border-b border-smoke/20 text-smoke text-xs">
-            <th className="text-left py-2 pr-4 font-normal">class</th>
-            <th className="text-right py-2 px-4 font-normal">P</th>
-            <th className="text-right py-2 px-4 font-normal">R</th>
-            <th className="text-right py-2 px-4 font-normal">F1</th>
-            <th className="text-right py-2 pl-4 font-normal">n</th>
+    <>
+      <tr>
+        <td className="axis" colSpan={5}>
+          {name}
+        </td>
+      </tr>
+      {axis ? (
+        Object.entries(axis.per_class).map(([cls, m]) => (
+          <tr key={`${name}-${cls}`}>
+            <td>{cls}</td>
+            <td className="num">{m.precision.toFixed(2)}</td>
+            <td className="num">{m.recall.toFixed(2)}</td>
+            <td className="num">{m.f1.toFixed(2)}</td>
+            <td className="num dim">{m.support}</td>
           </tr>
-        </thead>
-        <tbody className="text-bone">
-          {Object.entries(axis.per_class).map(([cls, m]) => (
-            <tr key={cls} className="border-b border-smoke/10">
-              <td className="py-2 pr-4">{cls}</td>
-              <td className="py-2 px-4 text-right tabular">
-                {m.precision.toFixed(2)}
-              </td>
-              <td className="py-2 px-4 text-right tabular">
-                {m.recall.toFixed(2)}
-              </td>
-              <td className="py-2 px-4 text-right tabular">
-                {m.f1.toFixed(2)}
-              </td>
-              <td className="py-2 pl-4 text-right tabular text-smoke">
-                {m.support}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function MissesTable({ misses }: { misses: EvalMiss[] }) {
-  return (
-    <div className="mt-6 space-y-4">
-      {misses.map((m) => (
-        <div
-          key={m.id}
-          className="border-l-2 border-gold/50 pl-4 py-1 font-mono text-sm"
-        >
-          <div className="text-bone leading-relaxed">
-            &ldquo;{m.text}&rdquo;
-          </div>
-          <div className="mt-2 text-xs text-smoke">
-            <span className="text-gold">{m.wrong_axes.join(", ")}</span> ·
-            expected{" "}
-            <span className="text-bone">
-              {m.wrong_axes
-                .map((axis) => m.expected[axis as keyof typeof m.expected])
-                .join("/")}
-            </span>
-            , got{" "}
-            <span className="text-bone">
-              {m.wrong_axes
-                .map((axis) => m.predicted[axis as keyof typeof m.predicted])
-                .join("/")}
-            </span>{" "}
-            · category {m.category}
-          </div>
-        </div>
-      ))}
-    </div>
+        ))
+      ) : (
+        <tr>
+          <td className="dim" colSpan={5}>
+            (loading)
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

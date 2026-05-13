@@ -1,39 +1,116 @@
+import { Footer } from "./components/Footer";
 import { GegeMomentsList } from "./components/GegeMomentsList";
 import { HeadlineChart } from "./components/HeadlineChart";
+import { Hero } from "./components/Hero";
 import { HeroStats } from "./components/HeroStats";
-import { LastUpdated } from "./components/LastUpdated";
+import { Nav } from "./components/Nav";
+import { PipelineScroller } from "./components/PipelineScroller";
 import { PolarisationTable } from "./components/PolarisationTable";
 import { SentimentLandscape } from "./components/SentimentLandscape";
 import { SubredditBreakdown } from "./components/SubredditBreakdown";
+import { WhyThisExists } from "./components/WhyThisExists";
 
+/**
+ * Homepage — Cursed Field Manual, full v4 mockup parity.
+ *
+ * Order:
+ *   nav
+ *   hero
+ *   stats strip
+ *   01 / 05  How they aged                (HeadlineChart)
+ *   02 / 05  Where the conversation lives (SubredditBreakdown)
+ *   03 / 05  The landscape                (SentimentLandscape)
+ *   04 / 05  Who splits the room          (PolarisationTable)
+ *   05 / 05  Gege moments                 (GegeMomentsList)
+ *   pipeline scroller                     ← new this commit
+ *   why this exists
+ *   footer
+ */
 export default function HomePage() {
   return (
     <main>
-      <header className="border-b border-smoke/20 pb-12">
-        <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-4">
-          Cursed Sentiment / volume 1
-        </div>
-        <h1 className="font-display italic text-headline text-bone max-w-2xl">
-          What 280,000 fans really feel about Gojo Satoru.
-        </h1>
-        <p className="mt-6 text-smoke max-w-2xl leading-relaxed">
-          A character-aware sentiment analytics pipeline over five years of r/JuJutsuKaisen discussion. Every chart on this page is recomputed daily from a fresh Reddit pull. Methodology, eval results, and known limitations are <a href="/methodology" className="text-bone underline decoration-smoke/40 underline-offset-4 hover:decoration-bone">on the methodology page</a>.
-        </p>
-      </header>
-
+      <Nav />
+      <Hero />
       <HeroStats />
-      <HeadlineChart />
-      <SentimentLandscape />
-      <SubredditBreakdown />
-      <PolarisationTable />
-      <GegeMomentsList />
 
-      <footer className="mt-24 pt-12 border-t border-smoke/20 font-mono text-xs text-smoke flex flex-wrap justify-between gap-4">
-        <div>
-          Built by <a href="https://aaditeyas.vercel.app" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">Aaditeya Sharma</a>. Source on <a href="https://github.com/Aaditeya8/Cursed-Sentiment" className="underline decoration-smoke/40 underline-offset-4 hover:text-bone">GitHub</a>.
+      <section id="chart" className="section">
+        <div className="section-head">
+          <div className="section-head-title">
+            <span className="section-num">01 / 05</span>
+            <h2>How they aged</h2>
+          </div>
+          <p className="lede">
+            Six-character weekly mean sentiment, five chapter events overlaid.
+            The chapter 236 reference line pulses — that&apos;s where the
+            floor fell out.
+          </p>
         </div>
-        <LastUpdated />
-      </footer>
+        <HeadlineChart />
+      </section>
+
+      <section id="subreddit" className="section">
+        <div className="section-head">
+          <div className="section-head-title">
+            <span className="section-num">02 / 05</span>
+            <h2>Where the conversation lives</h2>
+          </div>
+          <p className="lede">
+            Per-character mention split across the three subreddits.
+            r/Jujutsufolk skews meme; r/Jujutsushi skews analytical;
+            r/JuJutsuKaisen is the main hub.
+          </p>
+        </div>
+        <SubredditBreakdown />
+      </section>
+
+      <section id="landscape" className="section">
+        <div className="section-head">
+          <div className="section-head-title">
+            <span className="section-num">03 / 05</span>
+            <h2>The landscape</h2>
+          </div>
+          <p className="lede">
+            Every tracked character placed by warmth, controversy, and volume.
+            The upper-right quadrant is where the fandom is loudest and most
+            divided.
+          </p>
+        </div>
+        <SentimentLandscape />
+      </section>
+
+      <section id="polar" className="section">
+        <div className="section-head">
+          <div className="section-head-title">
+            <span className="section-num">04 / 05</span>
+            <h2>Who splits the room</h2>
+          </div>
+          <p className="lede">
+            Polarisation 1.0 = fandom evenly split. Min 50 mentions. The mean
+            column shows which way the disagreement leans on average.
+          </p>
+        </div>
+        <PolarisationTable />
+      </section>
+
+      <section id="moments" className="section">
+        <div className="section-head">
+          <div className="section-head-title">
+            <span className="section-num">05 / 05</span>
+            <h2>Gege moments</h2>
+          </div>
+          <p className="lede">
+            Weeks where weekly sentiment shifted &gt;2σ from baseline, paired
+            with the chapter that dropped that week.
+          </p>
+        </div>
+        <GegeMomentsList />
+      </section>
+
+      <PipelineScroller />
+
+      <WhyThisExists />
+
+      <Footer />
     </main>
   );
 }

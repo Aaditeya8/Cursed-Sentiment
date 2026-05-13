@@ -20,37 +20,26 @@ import {
   type EventRow,
 } from "@/lib/queries";
 
-// Six visually distinct colors for the top-6 characters. Picked to be
-// discriminable on the dark background and from each other (no
-// rose-vs-pink confusion). Stable mapping ensures the same character
-// always gets the same color across re-renders.
+// Six visually distinct hex colors for the top-6 characters. Literal
+// hex (not CSS vars) because Recharts passes them straight to SVG
+// attributes where var() doesn't resolve reliably in this setup.
 const CHARACTER_COLORS: Record<string, string> = {
-  "Gojo Satoru":      "#e8e1d3",  // warm bone
-  "Ryomen Sukuna":    "#d4af37",  // gold
-  "Itadori Yuji":     "#8da0cb",  // soft indigo
-  "Fushiguro Megumi": "#7fc8a9",  // sage green
-  "Kugisaki Nobara":  "#e07b91",  // rose
-  "Geto Suguru":      "#c084fc",  // violet
+  "Gojo Satoru":      "#f4ede0", // bone
+  "Ryomen Sukuna":    "#d4a857", // gold
+  "Itadori Yuji":     "#8da0cb", // soft indigo
+  "Fushiguro Megumi": "#7fc8a9", // sage
+  "Kugisaki Nobara":  "#e07b91", // rose
+  "Geto Suguru":      "#c084fc", // violet
 };
 
-// Fallback palette: if a character not in CHARACTER_COLORS shows up in
-// the top-6 (e.g., after a chapter-week shift the leaderboard moves),
-// these fill in. Each is visually distinct from the named ones.
-const FALLBACK_COLORS = [
-  "#f7a072",  // peach
-  "#5eb3d6",  // cyan
-  "#a8d672",  // lime
-  "#b88a4d",  // tobacco
-];
+const FALLBACK_COLORS = ["#f7a072", "#5eb3d6", "#a8d672", "#b88a4d"];
 
 /**
- * Sentiment-over-time for the top 6 characters, with a single reserved
- * crimson guideline at chapter 236 (the moment Gojo dies in the manga).
- *
- * The chart pivots gold-layer rows from long format into wide
- * (one column per character) so Recharts can draw multiple Lines from
- * the same dataset. The pivot happens client-side because pivots in
- * DuckDB-WASM are awkward and our data is small enough.
+ * Sentiment-over-time for the top 6 characters. Wrapped in a paper
+ * chart-card with the 呪 / 01 corner mark. Chapter 236 reference line
+ * renders as a dashed crimson rule with an italic Fraunces label
+ * rendered via a custom SVG callback (position="top" gets clipped by
+ * the SVG viewport; the callback renders inside the chart area).
  */
 export function HeadlineChart() {
   const weeks = useQuery<CharWeekRow>(Q_HEADLINE_WEEKLY);
@@ -65,39 +54,33 @@ export function HeadlineChart() {
     new Set(weeks.data.map((r) => r.display_name).filter(Boolean) as string[]),
   );
 
-  // Find chapter 236 if present in events. Reserved crimson, single emphasis.
   const ch236 = events.data?.find((e) => e.chapter === 236);
 
   return (
-    <div className="mt-8">
-      <div className="font-display italic text-section text-bone mb-1">
-        Sentiment over time
-      </div>
-      <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-6">
-        weekly mean · top 6 characters by mention volume
-      </div>
-
-      <div className="h-96 -mx-2">
+    <div className="chart-card" data-corner="呪 / 01">
+      <div style={{ height: 420 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={pivoted}
-            margin={{ top: 10, right: 12, left: 8, bottom: 32 }}
+            margin={{ top: 32, right: 16, left: 8, bottom: 32 }}
           >
-            <CartesianGrid vertical={false} />
+            <CartesianGrid vertical={false} stroke="#2a2024" />
             <XAxis
               dataKey="week_label"
-              stroke="var(--color-smoke)"
+              stroke="#6a6055"
               tickLine={false}
               axisLine={false}
               minTickGap={32}
+              tick={{ fill: "#b8ac9a", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
             />
             <YAxis
               domain={[-1, 1]}
               ticks={[-1, -0.5, 0, 0.5, 1]}
-              stroke="var(--color-smoke)"
+              stroke="#6a6055"
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => v.toFixed(1)}
+              tick={{ fill: "#b8ac9a", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
             />
             <Tooltip content={<TooltipBox />} />
 
@@ -120,14 +103,31 @@ export function HeadlineChart() {
             {ch236 && (
               <ReferenceLine
                 x={isoToWeekLabel(ch236.event_date)}
-                stroke="var(--color-crimson)"
-                strokeWidth={1.5}
-                label={{
-                  value: "Ch. 236 — Gojo dies",
-                  position: "insideTopRight",
-                  fill: "var(--color-crimson)",
-                  fontSize: 11,
-                  fontFamily: "var(--font-plex-mono)",
+                stroke="#c8102e"
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                label={(props: { viewBox?: { x: number; y: number } }) => {
+                  const vb = props.viewBox;
+                  if (!vb) return <g />;
+                  return (
+                    <g>
+                      <text
+                        x={vb.x}
+                        y={vb.y + 18}
+                        textAnchor="middle"
+                        fill="#ff2d4d"
+                        fontSize={13}
+                        fontStyle="italic"
+                        fontFamily="Fraunces, serif"
+                        style={{
+                          filter:
+                            "drop-shadow(0 0 6px rgba(255,45,77,0.45))",
+                        }}
+                      >
+                        Ch. 236 — Gojo dies
+                      </text>
+                    </g>
+                  );
                 }}
               />
             )}
@@ -144,7 +144,6 @@ export function HeadlineChart() {
 }
 
 function pivotByCharacter(rows: CharWeekRow[]) {
-  // Map week_label → { week_label, "Gojo Satoru": 0.4, "Ryomen Sukuna": -0.1, ... }
   const byWeek = new Map<string, Record<string, string | number>>();
   for (const r of rows) {
     const label = isoToWeekLabel(r.week_start);
@@ -170,15 +169,32 @@ function getISOWeek(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-function TooltipBox({ active, payload, label }: any) {
+function TooltipBox({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; value: number; color: string }>; label?: string }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="bg-ink border border-smoke/40 p-3 font-mono text-xs">
-      <div className="text-bone mb-2">{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.dataKey} className="flex justify-between gap-6">
+    <div
+      style={{
+        background: "#181214",
+        border: "1px solid #2a2024",
+        padding: "0.75rem 1rem",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: "0.75rem",
+      }}
+    >
+      <div style={{ color: "#f4ede0", marginBottom: "0.5rem" }}>{label}</div>
+      {payload.map((p) => (
+        <div
+          key={p.dataKey}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "1.5rem",
+          }}
+        >
           <span style={{ color: p.color }}>{p.dataKey}</span>
-          <span className="text-bone tabular">{Number(p.value).toFixed(2)}</span>
+          <span style={{ color: "#f4ede0", fontVariantNumeric: "tabular-nums" }}>
+            {Number(p.value).toFixed(2)}
+          </span>
         </div>
       ))}
     </div>
@@ -186,12 +202,24 @@ function TooltipBox({ active, payload, label }: any) {
 }
 
 function ChartSkeleton() {
-  return <div className="h-96 mt-8 bg-smoke/5 animate-pulse" />;
+  return <div className="chart-card" data-corner="呪 / 01" style={{ height: 420 }} />;
 }
 
 function ChartError() {
   return (
-    <div className="h-96 mt-8 border border-crimson/40 flex items-center justify-center font-mono text-sm text-crimson">
+    <div
+      className="chart-card"
+      data-corner="呪 / 01"
+      style={{
+        height: 420,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#ff2d4d",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: "0.875rem",
+      }}
+    >
       Failed to load weekly sentiment.
     </div>
   );
@@ -199,7 +227,19 @@ function ChartError() {
 
 function ChartEmpty() {
   return (
-    <div className="h-96 mt-8 border border-smoke/30 flex items-center justify-center font-mono text-sm text-smoke">
+    <div
+      className="chart-card"
+      data-corner="呪 / 01"
+      style={{
+        height: 420,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#6a6055",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: "0.875rem",
+      }}
+    >
       No weekly data yet.
     </div>
   );

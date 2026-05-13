@@ -65,6 +65,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # stamp pipeline status so the dashboard can show a real "last refreshed"
+          mkdir -p data/gold
+          cat > data/gold/_pipeline_status.json <<JSON
+          {
+            "last_ran_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_id }}",
+            "commit": "${{ github.sha }}"
+          }
+          JSON
+
           git add data/gold data/_state || true
           if ! git diff --staged --quiet; then
             git commit -m "ci: refresh gold + state ($(date -u +%Y-%m-%d))"

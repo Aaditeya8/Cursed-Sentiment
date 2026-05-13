@@ -15,139 +15,182 @@ import {
 import { useQuery } from "@/lib/duckdb";
 import { Q_TOP_CHARACTERS, type PolarisationRow } from "@/lib/queries";
 
+interface ScatterPoint {
+  x: number;
+  y: number;
+  z: number;
+  name: string;
+  mentions: number;
+  polarisation: number;
+  sentiment: number;
+}
+
 /**
- * Sentiment landscape — every character placed in 2D by:
- *   X = mean sentiment score (warmth, -1 to +1)
+ * The sentiment landscape — every tracked character as a bubble.
+ *   X = mean sentiment    (warmth, -1 to +1)
  *   Y = polarisation index (controversy, 0 to 1)
- *   bubble size = total mention count (volume)
+ *   Z = total mentions     (bubble area)
  *
- * Not an embedding projection (we don't have vectors), but the shape
- * tells the same kind of story: clusters in the upper-right are
- * "talked about a lot, fandom split" — characters who divide the
- * audience. Lower-left is "low volume, settled opinion."
+ * Bubbles render outlined-bone with low-opacity cursed-red fill;
+ * hovering pops a Recharts Tooltip with the character name and
+ * full stats. Four corner quadrant labels orient the reader without
+ * cluttering the data area.
  */
 export function SentimentLandscape() {
   const { data, error, loading } = useQuery<PolarisationRow>(Q_TOP_CHARACTERS);
 
-  if (loading) return <ChartSkeleton />;
-  if (error || !data || data.length === 0) return <ChartEmpty />;
+  if (loading) return <Shell />;
+  if (error || !data || data.length === 0) return <Shell empty />;
 
-  const points = data
+  const points: ScatterPoint[] = data
     .filter(
       (r) =>
         !isNaN(r.polarisation_index) && r.mean_sentiment_score !== undefined,
     )
     .map((r) => ({
-      x: r.mean_sentiment_score,
-      y: isNaN(r.polarisation_index) ? 0 : r.polarisation_index,
-      z: Math.max(20, Math.min(400, Number(r.total_mentions) * 2)),
+      x: Number(r.mean_sentiment_score),
+      y: isNaN(r.polarisation_index) ? 0 : Number(r.polarisation_index),
+      z: Math.max(60, Math.min(900, Number(r.total_mentions) * 1.2)),
       name: r.display_name ?? r.character_id,
       mentions: Number(r.total_mentions),
-      polarisation: r.polarisation_index,
-      sentiment: r.mean_sentiment_score,
+      polarisation: Number(r.polarisation_index),
+      sentiment: Number(r.mean_sentiment_score),
     }));
 
   return (
-    <div className="mt-16">
-      <div className="font-display italic text-section text-bone mb-1">
-        The sentiment landscape
-      </div>
-      <div className="font-mono text-xs uppercase tracking-wider text-smoke mb-6">
-        warmth × controversy × volume · every tracked character
-      </div>
+    <div className="landscape-wrap" data-corner="呪 / 03">
+      {/* quadrant labels — orient the reader without cluttering data area */}
+      <span className="quadrant-label tl">
+        Resented<span className="desc">cold · split fandom</span>
+      </span>
+      <span className="quadrant-label tr">
+        Adored<span className="desc">warm · split fandom</span>
+      </span>
+      <span className="quadrant-label bl">
+        Dismissed<span className="desc">cold · settled</span>
+      </span>
+      <span className="quadrant-label br">
+        Liked<span className="desc">warm · settled</span>
+      </span>
 
-      <div className="h-96 -mx-2">
+      <div style={{ height: 520 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 20, right: 32, left: 32, bottom: 48 }}>
-            <CartesianGrid />
+          <ScatterChart margin={{ top: 32, right: 48, left: 48, bottom: 48 }}>
+            <CartesianGrid stroke="#2a2024" />
             <XAxis
               type="number"
               dataKey="x"
               domain={[-1, 1]}
               ticks={[-1, -0.5, 0, 0.5, 1]}
-              stroke="var(--color-smoke)"
+              stroke="#6a6055"
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) =>
-                v === 0 ? "neutral" : v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)
+                v === 0 ? "0" : v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)
               }
-              label={{
-                value: "← cold        neutral        warm →",
-                position: "insideBottom",
-                offset: -16,
-                fill: "var(--color-smoke)",
-                fontSize: 11,
-                fontFamily: "var(--font-plex-mono)",
-              }}
+              tick={{ fill: "#b8ac9a", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
             />
             <YAxis
               type="number"
               dataKey="y"
               domain={[0, 1]}
               ticks={[0, 0.25, 0.5, 0.75, 1]}
-              stroke="var(--color-smoke)"
+              stroke="#6a6055"
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => v.toFixed(2)}
-              label={{
-                value: "polarisation",
-                angle: -90,
-                position: "insideLeft",
-                offset: -8,
-                fill: "var(--color-smoke)",
-                fontSize: 11,
-                fontFamily: "var(--font-plex-mono)",
-              }}
+              tick={{ fill: "#b8ac9a", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
             />
-            <ZAxis type="number" dataKey="z" range={[40, 400]} />
+            <ZAxis type="number" dataKey="z" range={[80, 900]} />
             <ReferenceLine
               x={0}
-              stroke="var(--color-smoke)"
-              strokeDasharray="2 2"
-              opacity={0.4}
+              stroke="#6a6055"
+              strokeDasharray="2 4"
+              opacity={0.6}
             />
-            <Tooltip content={<LandscapeTooltip />} />
+            <ReferenceLine
+              y={0.5}
+              stroke="#6a6055"
+              strokeDasharray="2 4"
+              opacity={0.6}
+            />
+            <Tooltip content={<LandscapeTooltip />} cursor={false} />
             <Scatter
               data={points}
-              fill="var(--color-gold)"
-              fillOpacity={0.6}
-              stroke="var(--color-bone)"
-              strokeWidth={1}
+              fill="#c8102e"
+              fillOpacity={0.35}
+              stroke="#f4ede0"
+              strokeWidth={1.2}
             />
           </ScatterChart>
         </ResponsiveContainer>
-      </div>
-
-      <div className="mt-2 font-mono text-xs text-smoke max-w-2xl leading-relaxed">
-        Each bubble is a character. Position on the X axis is mean sentiment
-        across all classifications. Y is the polarisation index — how
-        evenly the fandom is split positive vs. negative. Bubble size is
-        total mention volume. The interesting region is upper-right: high
-        volume, evenly split — characters the fandom is loud about and
-        can&apos;t agree on.
       </div>
     </div>
   );
 }
 
-function LandscapeTooltip({ active, payload }: any) {
+function LandscapeTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ScatterPoint }> }) {
   if (!active || !payload || payload.length === 0) return null;
   const p = payload[0].payload;
   return (
-    <div className="bg-ink border border-smoke/40 p-3 font-mono text-xs">
-      <div className="text-bone font-medium mb-2">{p.name}</div>
-      <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-        <span className="text-smoke">mentions</span>
-        <span className="text-bone tabular text-right">
+    <div
+      style={{
+        background: "#181214",
+        border: "1px solid #2a2024",
+        padding: "0.875rem 1.125rem",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: "0.75rem",
+        minWidth: 180,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "Fraunces, serif",
+          fontStyle: "italic",
+          fontSize: "1.05rem",
+          color: "#f4ede0",
+          marginBottom: "0.625rem",
+        }}
+      >
+        {p.name}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          columnGap: "1.5rem",
+          rowGap: "0.25rem",
+        }}
+      >
+        <span style={{ color: "#6a6055" }}>mentions</span>
+        <span
+          style={{
+            color: "#f4ede0",
+            fontVariantNumeric: "tabular-nums",
+            textAlign: "right",
+          }}
+        >
           {p.mentions.toLocaleString()}
         </span>
-        <span className="text-smoke">sentiment</span>
-        <span className="text-bone tabular text-right">
+        <span style={{ color: "#6a6055" }}>sentiment</span>
+        <span
+          style={{
+            color: "#f4ede0",
+            fontVariantNumeric: "tabular-nums",
+            textAlign: "right",
+          }}
+        >
           {p.sentiment >= 0 ? "+" : ""}
           {p.sentiment.toFixed(2)}
         </span>
-        <span className="text-smoke">polarisation</span>
-        <span className="text-bone tabular text-right">
+        <span style={{ color: "#6a6055" }}>polarisation</span>
+        <span
+          style={{
+            color: "#f4ede0",
+            fontVariantNumeric: "tabular-nums",
+            textAlign: "right",
+          }}
+        >
           {isNaN(p.polarisation) ? "—" : p.polarisation.toFixed(2)}
         </span>
       </div>
@@ -155,14 +198,22 @@ function LandscapeTooltip({ active, payload }: any) {
   );
 }
 
-function ChartSkeleton() {
-  return <div className="h-96 mt-16 bg-smoke/5 animate-pulse" />;
-}
-
-function ChartEmpty() {
+function Shell({ empty = false }: { empty?: boolean }) {
   return (
-    <div className="h-96 mt-16 border border-smoke/30 flex items-center justify-center font-mono text-sm text-smoke">
-      No landscape data yet.
+    <div
+      className="landscape-wrap"
+      data-corner="呪 / 03"
+      style={{
+        height: 520,
+        display: empty ? "flex" : "block",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#6a6055",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: "0.875rem",
+      }}
+    >
+      {empty && "No landscape data yet."}
     </div>
   );
 }
