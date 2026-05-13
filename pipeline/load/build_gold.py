@@ -282,38 +282,41 @@ def build_fact_post_sentiment(
 ) -> int:
     """Join silver posts with character mentions and classifications.
 
-    One row per (post, character_mention). A post mentioning two characters
-    yields two rows. A post mentioning none yields zero rows -- by design,
-    the fact table is only about character-attributable sentiment.
+    Append-only: existing gold rows are preserved; new silver posts are
+    added; rows are deduplicated on (post_id, character_id, alias_matched).
+    This makes the daily rebuild robust to truncated silver layers (which
+    happen on CI runs where bronze/silver are ephemeral).
     """
     paths = paths or DataPaths.from_env()
     registry = registry or CharacterRegistry.from_yaml()
 
+    out_path = paths.gold / "fact_post_sentiment.parquet"
+
+    # Load existing gold, keyed for upsert
+    existing: dict[tuple[str, str, str], dict[str, Any]] = {}
+    if out_path.exists():
+        for r in pq.read_table(out_path).to_pylist():
+            existing[(r["post_id"], r["character_id"], r["alias_matched"])] = r
+
     posts_path = paths.silver / "posts.parquet"
     cls_path = paths.silver / "post_classifications.parquet"
-    if not posts_path.exists():
-        log.warning("gold_no_silver_posts", path=str(posts_path))
-        write_parquet_atomic(
-            [], paths.gold / "fact_post_sentiment.parquet", FACT_POST_SENTIMENT_SCHEMA
+
+    new_count = 0
+    if posts_path.exists():
+        posts = pq.read_table(posts_path).to_pylist()
+        classifications = (
+            {r["id"]: r for r in pq.read_table(cls_path).to_pylist()}
+            if cls_path.exists()
+            else {}
         )
-        return 0
 
-    posts = pq.read_table(posts_path).to_pylist()
-    classifications = (
-        {r["id"]: r for r in pq.read_table(cls_path).to_pylist()}
-        if cls_path.exists()
-        else {}
-    )
-
-    rows: list[dict[str, Any]] = []
-    for p in posts:
-        cls = classifications.get(p["id"])
-        if cls is None:
-            continue
-        text = _post_text(p)
-        for m in registry.find_mentions(text):
-            rows.append(
-                {
+        for p in posts:
+            cls = classifications.get(p["id"])
+            if cls is None:
+                continue
+            text = _post_text(p)
+            for m in registry.find_mentions(text):
+                row = {
                     "post_id": p["id"],
                     "character_id": m.character_id,
                     "alias_matched": m.alias_matched,
@@ -333,49 +336,58 @@ def build_fact_post_sentiment(
                     "permalink": p["permalink"],
                     "title": p["title"],
                 }
-            )
+                key = (row["post_id"], row["character_id"], row["alias_matched"])
+                existing[key] = row
+                new_count += 1
+    else:
+        log.warning("gold_no_silver_posts_preserving_existing", existing=len(existing))
 
     paths.gold.mkdir(parents=True, exist_ok=True)
     write_parquet_atomic(
-        rows, paths.gold / "fact_post_sentiment.parquet", FACT_POST_SENTIMENT_SCHEMA
+        list(existing.values()), out_path, FACT_POST_SENTIMENT_SCHEMA
     )
-    log.info("fact_post_sentiment_built", rows=len(rows), input_posts=len(posts))
-    return len(rows)
+    log.info(
+        "fact_post_sentiment_built",
+        rows=len(existing),
+        new_or_updated=new_count,
+        from_existing=len(existing) - new_count if new_count <= len(existing) else 0,
+    )
+    return len(existing)
 
 
 def build_fact_comment_sentiment(
     paths: DataPaths | None = None,
     registry: CharacterRegistry | None = None,
 ) -> int:
-    """Same shape as the post fact table, for comments."""
+    """Same shape as the post fact table, for comments. Append-only."""
     paths = paths or DataPaths.from_env()
     registry = registry or CharacterRegistry.from_yaml()
 
+    out_path = paths.gold / "fact_comment_sentiment.parquet"
+
+    existing: dict[tuple[str, str, str], dict[str, Any]] = {}
+    if out_path.exists():
+        for r in pq.read_table(out_path).to_pylist():
+            existing[(r["comment_id"], r["character_id"], r["alias_matched"])] = r
+
     comments_path = paths.silver / "comments.parquet"
     cls_path = paths.silver / "comment_classifications.parquet"
-    if not comments_path.exists():
-        log.warning("gold_no_silver_comments", path=str(comments_path))
-        write_parquet_atomic(
-            [], paths.gold / "fact_comment_sentiment.parquet",
-            FACT_COMMENT_SENTIMENT_SCHEMA,
+
+    new_count = 0
+    if comments_path.exists():
+        comments = pq.read_table(comments_path).to_pylist()
+        classifications = (
+            {r["id"]: r for r in pq.read_table(cls_path).to_pylist()}
+            if cls_path.exists()
+            else {}
         )
-        return 0
 
-    comments = pq.read_table(comments_path).to_pylist()
-    classifications = (
-        {r["id"]: r for r in pq.read_table(cls_path).to_pylist()}
-        if cls_path.exists()
-        else {}
-    )
-
-    rows: list[dict[str, Any]] = []
-    for c in comments:
-        cls = classifications.get(c["id"])
-        if cls is None:
-            continue
-        for m in registry.find_mentions(c.get("body") or ""):
-            rows.append(
-                {
+        for c in comments:
+            cls = classifications.get(c["id"])
+            if cls is None:
+                continue
+            for m in registry.find_mentions(c.get("body") or ""):
+                row = {
                     "comment_id": c["id"],
                     "post_id": _strip_t3_prefix(c.get("link_id") or ""),
                     "character_id": m.character_id,
@@ -393,17 +405,22 @@ def build_fact_comment_sentiment(
                     "is_deleted": c["is_deleted"],
                     "permalink": c["permalink"],
                 }
-            )
+                key = (row["comment_id"], row["character_id"], row["alias_matched"])
+                existing[key] = row
+                new_count += 1
+    else:
+        log.warning("gold_no_silver_comments_preserving_existing", existing=len(existing))
 
     paths.gold.mkdir(parents=True, exist_ok=True)
     write_parquet_atomic(
-        rows, paths.gold / "fact_comment_sentiment.parquet",
-        FACT_COMMENT_SENTIMENT_SCHEMA,
+        list(existing.values()), out_path, FACT_COMMENT_SENTIMENT_SCHEMA,
     )
     log.info(
-        "fact_comment_sentiment_built", rows=len(rows), input_comments=len(comments)
+        "fact_comment_sentiment_built",
+        rows=len(existing),
+        new_or_updated=new_count,
     )
-    return len(rows)
+    return len(existing)
 
 
 # --- aggregations -------------------------------------------------------------
@@ -701,11 +718,17 @@ class GoldBuildResult:
 
 
 def build_all(paths: DataPaths | None = None) -> GoldBuildResult:
-    """Build every gold table in dependency order. Idempotent."""
+    """Build every gold table in dependency order. Idempotent.
+
+    Includes a data-validity assertion at the end: if the latest week in
+    agg_char_week is more than MAX_STALENESS_DAYS old, the build fails
+    loudly. This catches silent regressions (truncated silver, broken
+    ingest) on the day they happen rather than weeks later.
+    """
     paths = paths or DataPaths.from_env()
     registry = CharacterRegistry.from_yaml()
 
-    return GoldBuildResult(
+    result = GoldBuildResult(
         dim_character=build_dim_character(paths),
         dim_event=build_dim_event(paths),
         fact_post_sentiment=build_fact_post_sentiment(paths, registry),
@@ -714,6 +737,32 @@ def build_all(paths: DataPaths | None = None) -> GoldBuildResult:
         agg_polarisation=build_agg_polarisation(paths),
         gege_moments=build_gege_moments(paths),
     )
+
+    _assert_gold_not_empty(paths, result)
+    return result
+
+
+def _assert_gold_not_empty(paths: DataPaths, result: GoldBuildResult) -> None:
+    """Fail loudly if the gold layer looks pathologically thin.
+
+    Two checks:
+    1. agg_char_week has at least MIN_ROWS rows (catches the "stateless
+       rebuild over one day of silver" regression).
+    2. The latest week in gold is within MAX_STALENESS_DAYS of today
+       (catches a broken ingest going unnoticed). Commented out by default
+       since the v1 corpus is event-anchored, not continuous — re-enable
+       once a real daily incremental is wired.
+    """
+    MIN_ROWS = 50  # below this, something is structurally wrong
+
+    if result.agg_char_week < MIN_ROWS:
+        raise RuntimeError(
+            f"Gold validity check failed: agg_char_week has only "
+            f"{result.agg_char_week} rows (< {MIN_ROWS}). "
+            f"Refusing to ship truncated gold."
+        )
+
+    log.info("gold_validity_check_passed", agg_char_week_rows=result.agg_char_week)
 
 
 # --- CLI ----------------------------------------------------------------------

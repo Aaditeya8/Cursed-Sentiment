@@ -1,0 +1,9 @@
+{
+  "last_ran_at": "2026-05-13T14:25:38.786945+00:00",
+  "run_id": "local",
+  "commit": "local",
+  "max_yearweek_in_gold": 202440,
+  "agg_char_week_rows": 256,
+  "fact_post_rows": 14422,
+  "fact_comment_rows": 4778
+}
