@@ -14,11 +14,11 @@ export function Nav() {
         Cursed Sentiment
       </Link>
       <div className="nav-links">
-        <Link href="#chart">Timeline</Link>
-        <Link href="#subreddit">Subreddits</Link>
-        <Link href="#landscape">Landscape</Link>
-        <Link href="#polar">Polarisation</Link>
-        <Link href="#moments">Moments</Link>
+        <Link href="/#chart">Timeline</Link>
+        <Link href="/#subreddit">Subreddits</Link>
+        <Link href="/#landscape">Landscape</Link>
+        <Link href="/#polar">Polarisation</Link>
+        <Link href="/#moments">Moments</Link>
         <Link href="/methodology">Methodology</Link>
         <a
           href="https://github.com/Aaditeya8/Cursed-Sentiment"

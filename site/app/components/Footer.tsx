@@ -26,11 +26,11 @@ export function Footer() {
 
         <div className="foot-col">
           <h5>The Dashboard</h5>
-          <Link href="#chart">Timeline</Link>
-          <Link href="#subreddit">Subreddits</Link>
-          <Link href="#landscape">Landscape</Link>
-          <Link href="#polar">Polarisation</Link>
-          <Link href="#moments">Gege Moments</Link>
+          <Link href="/#chart">Timeline</Link>
+          <Link href="/#subreddit">Subreddits</Link>
+          <Link href="/#landscape">Landscape</Link>
+          <Link href="/#polar">Polarisation</Link>
+          <Link href="/#moments">Gege Moments</Link>
         </div>
 
         <div className="foot-col">
@@ -50,7 +50,7 @@ export function Footer() {
           >
             Known limitations ↗
           </a>
-          <Link href="#why">Why this exists</Link>
+          <Link href="/#why">Why this exists</Link>
         </div>
 
         <div className="foot-col">
