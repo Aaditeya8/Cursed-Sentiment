@@ -1,8 +1,8 @@
 {
-  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-15/arctic_shift/comments.20260515T084737.parquet": "2026-05-15T08:48:28.961278+00:00",
-  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-15/arctic_shift/comments.20260515T084747.parquet": "2026-05-15T08:48:28.961278+00:00",
-  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-15/arctic_shift/comments.20260515T084828.parquet": "2026-05-15T08:48:28.961278+00:00",
-  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-15/arctic_shift/posts.20260515T084730.parquet": "2026-05-15T08:48:28.961278+00:00",
-  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-15/arctic_shift/posts.20260515T084742.parquet": "2026-05-15T08:48:28.961278+00:00",
-  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-15/arctic_shift/posts.20260515T084753.parquet": "2026-05-15T08:48:28.961278+00:00"
+  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-16/arctic_shift/comments.20260516T080213.parquet": "2026-05-16T08:02:58.173923+00:00",
+  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-16/arctic_shift/comments.20260516T080222.parquet": "2026-05-16T08:02:58.173923+00:00",
+  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-16/arctic_shift/comments.20260516T080257.parquet": "2026-05-16T08:02:58.173923+00:00",
+  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-16/arctic_shift/posts.20260516T080208.parquet": "2026-05-16T08:02:58.173923+00:00",
+  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-16/arctic_shift/posts.20260516T080218.parquet": "2026-05-16T08:02:58.173923+00:00",
+  "/home/runner/work/Cursed-Sentiment/Cursed-Sentiment/data/bronze/2026-05-16/arctic_shift/posts.20260516T080228.parquet": "2026-05-16T08:02:58.173923+00:00"
 }
